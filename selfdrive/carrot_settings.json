@@ -1375,7 +1375,7 @@
       "egroup": "START",
       "etitle": "HYUNDAI: LDWS ONLY CAR(0)",
       "edescr": "LDWS ONLY CAR",
-      "min": -1,
+      "min": 0,
       "max": 1,
       "default": 0,
       "unit": 1
