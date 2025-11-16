@@ -73,8 +73,8 @@ def create_lkas11(packer, frame, CP, apply_torque, steer_req,
     # Genesis and Optima fault when forwarding while engaged
     values["CF_Lkas_LdwsActivemode"] = 2
 
-  if is_ldws_car:
-    values["CF_Lkas_LdwsOpt_USM"] = 3
+  if is_ldws_car != 0:
+    values["CF_Lkas_LdwsOpt_USM"] = 3 if is_ldws_car > 0 else 0
 
   dat = packer.make_can_msg("LKAS11", 0, values)[1]
 
