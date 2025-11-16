@@ -235,6 +235,9 @@ def create_acc_commands_scc(packer, enabled, accel, jerk, idx, hud_control, set_
   return commands
 
 def create_acc_opt_copy(CS, packer):
+  values = copy.copy(CS.scc13)
+  if values["NEW_SIGNAL_1"]  == 255:
+    values["NEW_SIGNAL_1"]  = 218
   return packer.make_can_msg("SCC13", 0, CS.scc13)
 
 def create_acc_commands(packer, enabled, accel, jerk, idx, hud_control, set_speed, stopping, long_override, use_fca, CP, CS, soft_hold_mode):
