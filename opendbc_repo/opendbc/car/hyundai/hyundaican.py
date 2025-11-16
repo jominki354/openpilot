@@ -212,6 +212,8 @@ def create_acc_commands_scc(packer, enabled, accel, jerk, idx, hud_control, set_
 
   if CS.fca11 is not None and use_fca: # CASPER_EV의 경우 FCA11에서 fail이 간헐적 발생함.. 그냥막자.. 원인불명..
     values = copy.copy(CS.fca11)
+    if values["FCA_Failinfo"] != 0:
+      values["FCA_Status"] = 2
     values["FCA_Failinfo"] = 0
     fca11_dat = packer.make_can_msg("FCA11", 0, values)[1]
     values["CR_FCA_ChkSum"] = hyundai_checksum(fca11_dat[:7])
