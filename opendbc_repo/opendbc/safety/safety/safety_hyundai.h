@@ -210,13 +210,13 @@ static bool hyundai_tx_hook(const CANPacket_t *to_send) {
   int addr = GET_ADDR(to_send);
 
   // FCA11: Block any potential actuation
-  if (addr == 0x38D) {
+  if (false && addr == 0x38D) {
     int CR_VSM_DecCmd = GET_BYTE(to_send, 1);
     bool FCA_CmdAct = GET_BIT(to_send, 20U);
     bool CF_VSM_DecCmdAct = GET_BIT(to_send, 31U);
 
     if ((CR_VSM_DecCmd != 0) || FCA_CmdAct || CF_VSM_DecCmdAct) {
-      //tx = false;
+      tx = false;
     }
   }
 
