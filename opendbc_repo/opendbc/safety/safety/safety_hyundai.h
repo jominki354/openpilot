@@ -216,7 +216,7 @@ static bool hyundai_tx_hook(const CANPacket_t *to_send) {
     bool CF_VSM_DecCmdAct = GET_BIT(to_send, 31U);
 
     if ((CR_VSM_DecCmd != 0) || FCA_CmdAct || CF_VSM_DecCmdAct) {
-      tx = false;
+      //tx = false;
     }
   }
 
