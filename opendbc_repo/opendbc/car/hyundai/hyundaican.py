@@ -210,6 +210,12 @@ def create_acc_commands_scc(packer, enabled, accel, jerk, idx, hud_control, set_
     values["ObjDistStat"] = objGap2
     commands.append(packer.make_can_msg("SCC14", 0, values))
 
+  if CS.fca11 is not None and use_fca:
+    values = copy.copy(CS.fca11)
+    values["FCA_FailInfo"] = 0
+    fca11_dat = packer.make_can_msg("FCA11", 0, values)[1]
+    values["CR_FCA_ChkSum"] = hyundai_checksum(fca11_dat[:7])
+    commands.append(packer.make_can_msg("FCA11", 0, values))
   # Only send FCA11 on cars where it exists on the bus
   if False: #use_fca:
     # note that some vehicles most likely have an alternate checksum/counter definition
