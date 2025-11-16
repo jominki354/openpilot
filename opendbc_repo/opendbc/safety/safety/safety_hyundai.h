@@ -278,18 +278,19 @@ static bool hyundai_tx_hook(const CANPacket_t *to_send) {
       tx = false;
     }
   }
+  uint32_t now = microsecond_timer_get();
   if(addr == 832)
-    last_ts_lkas11_from_op = (tx == 0 ? 0 : microsecond_timer_get());
+    last_ts_lkas11_from_op = (tx == 0 ? 0 : now);
   else if(addr == 1057)
-    last_ts_scc12_from_op = (tx == 0 ? 0 : microsecond_timer_get());
+    last_ts_scc12_from_op = (tx == 0 ? 0 : now);
   else if(addr == 593)
-    last_ts_mdps12_from_op = (tx == 0 ? 0 : microsecond_timer_get());
+    last_ts_mdps12_from_op = (tx == 0 ? 0 : now);
   else if (addr == 909)
-    last_ts_fca11_from_op = (tx == 0 ? 0 : microsecond_timer_get());
+    last_ts_fca11_from_op = (tx == 0 ? 0 : now);
   else if (addr == 1155)
-    last_ts_fca12_from_op = (tx == 0 ? 0 : microsecond_timer_get());
+    last_ts_fca12_from_op = (tx == 0 ? 0 : now);
   else if(addr == 1290)
-    last_ts_scc13_from_op = (tx == 0 ? 0 : microsecond_timer_get());
+    last_ts_scc13_from_op = (tx == 0 ? 0 : now);
 
   return tx;
 }
@@ -334,7 +335,7 @@ static int hyundai_fwd_hook(int bus_num, int addr) {
           bus_fwd = 0;
       }
       else if (is_scc13_msg) {
-        if (now - last_ts_scc13_from_op >= 400000)
+        if (now - last_ts_scc13_from_op >= 800000)
           bus_fwd = 0;
       }
       else if (is_fca11_msg) {

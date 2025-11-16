@@ -359,7 +359,8 @@ class CarController(CarControllerBase):
         if camera_scc:
           if CS.scc13 is not None:
             if casper_opt:
-              can_sends.append(hyundaican.create_acc_opt_copy(CS, self.packer))
+              #can_sends.append(hyundaican.create_acc_opt_copy(CS, self.packer))
+              pass
           pass
         else:
           can_sends.extend(hyundaican.create_acc_opt(self.packer, self.CP))
