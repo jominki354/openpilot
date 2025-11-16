@@ -272,6 +272,7 @@ class CarrotMan:
     self.long_active = False
     self.v_cruise_change = 0
     self._last_vt = 0.0
+    self.gas_pressed_count = 0
     while self.is_running:
       try:
         self.sm.update(0)
@@ -348,13 +349,19 @@ class CarrotMan:
       gas_pressed = CS.gasPressed
       v_ego_kph = v_ego * 3.6
       if self.long_active and CC.longActive:
-        if self.v_cruise_last < CS.vCruise:  # 속도가 증가하면
+        if gas_pressed:
+          self.gas_pressed_count = 120
+          self.v_cruise_change = 0
+        elif self.v_cruise_last < CS.vCruise:  # 속도가 증가하면
           self.v_cruise_change = 120
         elif self.v_cruise_last > CS.vCruise: # 속도가 감소하면
           if v_ego_kph < CS.vCruise: # 주행속도가 느리면
             self.v_cruise_change = 120
           else:                       # 주행속도가 빠르면
             self.v_cruise_change = -120
+
+        if self.v_cruise_change != 0:
+          self.gas_pressed_count = 0
       else:
         self.v_cruise_change = 0
       self.long_active = CC.longActive
@@ -365,7 +372,7 @@ class CarrotMan:
     now = time.monotonic()
     heading = self.carrot_serv.nPosAnglePhone
     lat, lon = self.carrot_serv.estimate_position(self.carrot_serv.phone_latitude, self.carrot_serv.phone_longitude, heading, v_ego, now - self.carrot_serv.last_update_gps_time_phone)
-    #lat, lon, heading = self.carrot_serv.phone_latitude, self.carrot_serv.phone_longitude, self.carrot_serv.nPosAnglePhone
+    vt = carrot_speed.query_target_dist(lat, lon, heading, 0.0)
     if self.v_cruise_change != 0:
       carrot_speed.add_sample(lat, lon, heading, self.v_cruise_last if self.v_cruise_change > 0 else (- self.v_cruise_last))
       if self.v_cruise_change > 0:
@@ -373,14 +380,17 @@ class CarrotMan:
       if self.v_cruise_change < 0:
         self.v_cruise_change += 1
     else:
-      vt = carrot_speed.query_target_dist(lat, lon, heading, 0.0)
-      print("carrot_speed_serv: target speed=", vt)
+      if self.gas_pressed_count > 0 and vt < 0 and abs(vt) < self.v_cruise_last:
+        carrot_speed.add_sample(lat, lon, heading, self.v_cruise_last)
+
       if vt != 0.0:
         self.params_memory.put_int_nonblocking("CarrotSpeed", int(vt))
         self._last_vt = vt
 
     if gas_pressed and self._last_vt < 0.0:
-      carrot_speed.invalidate_last_hit(window_s=2.0, action="clear")      
+      carrot_speed.invalidate_last_hit(window_s=2.0, action="clear")
+
+    self.gas_pressed_count = max(0, self.gas_pressed_count - 1)
     carrot_speed.maybe_save()
 
 
