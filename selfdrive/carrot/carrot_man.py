@@ -380,7 +380,7 @@ class CarrotMan:
       if self.v_cruise_change < 0:
         self.v_cruise_change += 1
     else:
-      if self.gas_pressed_count > 0 and vt < 0 and abs(vt) < self.v_cruise_last:
+      if self.gas_pressed_count > 0 and vt < 0:
         carrot_speed.add_sample(lat, lon, heading, self.v_cruise_last)
 
       elif vt != 0.0:
