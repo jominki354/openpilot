@@ -351,7 +351,7 @@ class CarrotMan:
       if gas_pressed:
         self.gas_pressed_count = 120
         self.v_cruise_change = 0
-      if self.long_active and CC.longActive:
+      elif self.long_active and CC.longActive:
         if self.v_cruise_last < CS.vCruise:  # 속도가 증가하면
           self.v_cruise_change = 120
         elif self.v_cruise_last > CS.vCruise: # 속도가 감소하면
@@ -380,8 +380,8 @@ class CarrotMan:
       if self.v_cruise_change < 0:
         self.v_cruise_change += 1
     else:
-      if self.gas_pressed_count > 0 and vt < 0:
-        carrot_speed.add_sample(lat, lon, heading, self.v_cruise_last)
+      if self.gas_pressed_count > 0:
+        carrot_speed.add_sample(lat, lon, heading, max(vt, self.v_cruise_last))
 
       elif vt != 0.0:
         self.params_memory.put_int_nonblocking("CarrotSpeed", int(vt))
