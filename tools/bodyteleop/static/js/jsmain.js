@@ -31,6 +31,9 @@ try {
   $("#device-ip").text("-");
 }
 
+// Display branch name
+$("#branch-name").text("j-nr-s-pad");
+
 // Update input visualization
 setInterval(() => {
   const { x, y } = getXY();
@@ -57,13 +60,13 @@ setInterval(() => {
     $("#steer-fill").css({
       "left": "50%",
       "width": (y * 50) + "%",
-      "background": "linear-gradient(90deg, #6366f1, #8b5cf6)"
+      "background": "linear-gradient(90deg, #10b981, #059669)"
     });
   } else {
     $("#steer-fill").css({
       "left": (50 + y * 50) + "%",
       "width": (-y * 50) + "%",
-      "background": "linear-gradient(90deg, #8b5cf6, #6366f1)"
+      "background": "linear-gradient(90deg, #047857, #10b981)"
     });
   }
 }, 50);
@@ -71,7 +74,6 @@ setInterval(() => {
 setInterval(() => {
   const dt = new Date().getTime();
   if ((dt - lastChannelMessageTime) > 1000) {
-    $("#battery").text("-");
     $("#ping-time").text('-');
   }
 }, 5000);
