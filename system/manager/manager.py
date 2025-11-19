@@ -183,6 +183,15 @@ def get_default_params():
     ("SteerRatioRate", "100"),
     ("NNFF", "0"),
     ("NNFFLite", "0"),
+
+    # Joystick parameters
+    ("JoystickSmoothingEnabled", "0"),
+    ("JoystickSteeringSensitivity", "100"),
+    ("JoystickSteeringGain", "100"),
+    ("JoystickAccelSensitivity", "100"),
+    ("JoystickAccelGain", "100"),
+    ("JoystickDeadzone", "0"),
+    ("JoystickPreset", "기본값"),
   ]
   return default_params
 

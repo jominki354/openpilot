@@ -8,6 +8,7 @@ from inputs import UnpluggedError, get_gamepad
 from cereal import messaging
 from openpilot.common.params import Params
 from openpilot.common.realtime import Ratekeeper
+from openpilot.common.swaglog import cloudlog
 from openpilot.system.hardware import HARDWARE
 from openpilot.tools.lib.kbhit import KBHit
 
@@ -66,6 +67,8 @@ class Joystick:
       joystick_event = get_gamepad()[0]
     except (OSError, UnpluggedError):
       self.axes_values = dict.fromkeys(self.axes_values, 0.)
+      import time
+      time.sleep(0.1)  # Wait 100ms before retry to avoid CPU spinning
       return False
 
     event = (joystick_event.code, joystick_event.state)
@@ -110,13 +113,31 @@ def send_thread(joystick):
 
 
 def joystick_control_thread(joystick):
-  Params().put_bool('JoystickDebugMode', True)
+  params = Params()
+  # Manager already checked JoystickDebugMode condition, no need to check again
+  cloudlog.info("joystick_control starting")
+  
   threading.Thread(target=send_thread, args=(joystick,), daemon=True).start()
-  while True:
-    joystick.update()
+  try:
+    while True:
+      joystick.update()
+  finally:
+    # Disable joystick mode when exiting
+    params.put_bool('JoystickDebugMode', False)
 
 
 def main():
+  # Log joystick hardware info for debugging
+  try:
+    devices = os.listdir('/dev/input/')
+    js_devices = [d for d in devices if d.startswith('js')]
+    cloudlog.info(f"Joystick devices found: {js_devices}")
+    
+    if not js_devices:
+      cloudlog.warning("No joystick devices found in /dev/input/")
+  except Exception as e:
+    cloudlog.error(f"Failed to check joystick devices: {e}")
+  
   joystick_control_thread(Joystick())
 
 
@@ -128,9 +149,10 @@ if __name__ == '__main__':
   parser.add_argument('--keyboard', action='store_true', help='Use your keyboard instead of a joystick')
   args = parser.parse_args()
 
-  if not Params().get_bool("IsOffroad") and "ZMQ" not in os.environ:
-    print("The car must be off before running joystick_control.")
-    exit()
+  # fix.. allow running anytime
+  # if not Params().get_bool("IsOffroad") and "ZMQ" not in os.environ:
+  #   print("The car must be off before running joystick_control.")
+  #   exit()
 
   print()
   if args.keyboard:
