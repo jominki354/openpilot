@@ -6,12 +6,30 @@ export var dc = null;
 
 document.addEventListener('keydown', (e) => (handleKeyX(e.key.toLowerCase(), 1)));
 document.addEventListener('keyup', (e) => (handleKeyX(e.key.toLowerCase(), 0)));
-$(".key").bind("mousedown touchstart", (e) => handleKeyX($(e.target).attr('id').replace('key-', ''), 1));
-$(".key").bind("mouseup touchend", (e) => handleKeyX($(e.target).attr('id').replace('key-', ''), 0));
+$(".key-mobile").bind("mousedown touchstart", (e) => {
+  e.preventDefault();
+  handleKeyX($(e.target).attr('id').replace('key-', ''), 1);
+});
+$(".key-mobile").bind("mouseup touchend", (e) => {
+  e.preventDefault();
+  handleKeyX($(e.target).attr('id').replace('key-', ''), 0);
+});
 $(".sound").click((e) => {
   const sound = $(e.target).attr('id').replace('sound-', '')
   return playSoundRequest(sound);
 });
+
+// Display device IP
+try {
+  const hostname = window.location.hostname;
+  if (hostname && hostname !== 'localhost' && hostname !== '127.0.0.1') {
+    $("#device-ip").text(hostname);
+  } else {
+    $("#device-ip").text(window.location.host);
+  }
+} catch (e) {
+  $("#device-ip").text("-");
+}
 
 // Update input visualization
 setInterval(() => {
@@ -55,19 +73,18 @@ setInterval(() => {
   if ((dt - lastChannelMessageTime) > 1000) {
     $("#battery").text("-");
     $("#ping-time").text('-');
-    $("video")[0].load();
   }
 }, 5000);
 
 // Gamepad connection monitoring
 window.addEventListener("gamepadconnected", (e) => {
   console.log("Gamepad connected:", e.gamepad.id);
-  $("#gamepad-status-value").text(e.gamepad.id).removeClass("disconnected").addClass("connected");
+  $("#gamepad-status-main").text(e.gamepad.id).removeClass("disconnected").addClass("connected");
 });
 
 window.addEventListener("gamepaddisconnected", (e) => {
   console.log("Gamepad disconnected");
-  $("#gamepad-status-value").text("Not Connected").removeClass("connected").addClass("disconnected");
+  $("#gamepad-status-main").text("Connect Your PS5 Controller").removeClass("connected").addClass("disconnected");
 });
 
 // Check for already connected gamepads on page load
@@ -75,7 +92,7 @@ const checkGamepads = () => {
   const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
   for (let i = 0; i < gamepads.length; i++) {
     if (gamepads[i]) {
-      $("#gamepad-status-value").text(gamepads[i].id).removeClass("disconnected").addClass("connected");
+      $("#gamepad-status-main").text(gamepads[i].id).removeClass("disconnected").addClass("connected");
       return;
     }
   }

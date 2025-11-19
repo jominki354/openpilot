@@ -18,106 +18,79 @@
 <body>
   <div id="main">
 
-    <!-- Header -->
-    <div class="header">
-      <div class="logo-section">
-        <img src="/static/poster.png" alt="CarrotPilot Logo" class="logo">
-        <div>
-          <h1 class="title">CarrotPilot Remote</h1>
-          <p class="subtitle">Wireless Gamepad Control Interface</p>
-        </div>
-      </div>
+    <!-- Compact Logo Header -->
+    <div class="logo-header">
+      <img src="/static/poster.png" alt="CarrotPilot" class="logo-compact">
     </div>
 
-    <!-- Status Cards -->
-    <div class="status-grid">
-      <div class="status-card">
-        <div class="status-label">Connection Status</div>
-        <div class="status-value loading">Initializing...</div>
-      </div>
-      <div class="status-card">
-        <div class="status-label">Gamepad</div>
-        <div id="gamepad-status-value" class="status-value disconnected">Not Connected</div>
-      </div>
-      <div class="status-card">
-        <div class="status-label">Latency</div>
-        <div id="ping-time" class="status-value">-</div>
-      </div>
-      <div class="status-card">
-        <div class="status-label">Battery</div>
-        <div id="battery" class="status-value">-</div>
-      </div>
+    <!-- Gamepad Status (Primary) -->
+    <div class="gamepad-status-card">
+      <div class="status-label">Gamepad Connection</div>
+      <div id="gamepad-status-main" class="gamepad-status-value disconnected">Connect Your PS5 Controller</div>
     </div>
 
-    <!-- Video Feed -->
-    <div class="video-container">
-      <audio id="audio" autoplay="true"></audio>
-      <video id="video" playsinline autoplay muted loop poster="/static/poster.png"></video>
-      <div class="video-overlay">
-        Camera Feed
-      </div>
-    </div>
-
-    <!-- Control Section -->
-    <div class="control-section">
-      <h2 class="section-title">Control Interface</h2>
-
-      <!-- Input Visualization -->
-      <div class="input-viz">
-        <div class="viz-meter">
-          <div class="meter-label">Acceleration / Brake</div>
-          <div class="meter-bar">
-            <div id="accel-fill" class="meter-fill" style="width: 0%; left: 50%;"></div>
+    <!-- Input Visualization (Most Important) -->
+    <div class="control-section-compact">
+      <div class="input-viz-mobile">
+        <div class="viz-meter-mobile">
+          <div class="meter-label-mobile">Accel / Brake</div>
+          <div class="meter-bar-mobile">
+            <div class="meter-center-line"></div>
+            <div id="accel-fill" class="meter-fill-mobile"></div>
           </div>
-          <div id="accel-value" class="meter-value">0.000</div>
+          <div id="accel-value" class="meter-value-mobile">0.000</div>
         </div>
-        <div class="viz-meter">
-          <div class="meter-label">Steering</div>
-          <div class="meter-bar">
-            <div id="steer-fill" class="meter-fill" style="width: 0%; left: 50%;"></div>
+        <div class="viz-meter-mobile">
+          <div class="meter-label-mobile">Steering</div>
+          <div class="meter-bar-mobile">
+            <div class="meter-center-line"></div>
+            <div id="steer-fill" class="meter-fill-mobile"></div>
           </div>
-          <div id="steer-value" class="meter-value">0.000</div>
+          <div id="steer-value" class="meter-value-mobile">0.000</div>
         </div>
       </div>
+    </div>
 
-      <!-- Keyboard Controls (Fallback) -->
-      <div style="text-align: center; margin-bottom: 1rem;">
-        <div class="status-label">Keyboard Controls (Fallback)</div>
-      </div>
-      <div class="keyboard-grid">
+    <!-- Keyboard Controls (Fallback) -->
+    <div class="keyboard-section">
+      <div class="keyboard-grid-mobile">
         <div class="keyboard-row">
-          <div class="key" id="key-w">W</div>
+          <div class="key-mobile" id="key-w">W</div>
         </div>
         <div class="keyboard-row">
-          <div class="key" id="key-a">A</div>
-          <div class="key" id="key-s">S</div>
-          <div class="key" id="key-d">D</div>
-        </div>
-      </div>
-
-      <!-- Sound Test Buttons -->
-      <div style="margin-top: 2rem; text-align: center;">
-        <div class="status-label" style="margin-bottom: 1rem;">System Sounds</div>
-        <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
-          <button type="button" id="sound-engage" class="btn btn-success sound">Engage</button>
-          <button type="button" id="sound-disengage" class="btn btn-warning sound">Disengage</button>
-          <button type="button" id="sound-error" class="btn btn-danger sound">Alert</button>
+          <div class="key-mobile" id="key-a">A</div>
+          <div class="key-mobile" id="key-s">S</div>
+          <div class="key-mobile" id="key-d">D</div>
         </div>
       </div>
     </div>
 
-    <!-- Charts -->
-    <div class="control-section">
-      <h2 class="section-title">Performance Metrics</h2>
-      <div class="input-viz">
-        <div>
-          <canvas id="chart-ping"></canvas>
-        </div>
-        <div>
-          <canvas id="chart-battery"></canvas>
-        </div>
+    <!-- System Sounds -->
+    <div class="sound-controls">
+      <button type="button" id="sound-engage" class="btn-mobile btn-success sound">Engage</button>
+      <button type="button" id="sound-disengage" class="btn-mobile btn-warning sound">Disengage</button>
+      <button type="button" id="sound-error" class="btn-mobile btn-danger sound">Alert</button>
+    </div>
+
+    <!-- Secondary Info (Bottom) -->
+    <div class="info-footer">
+      <div class="info-item">
+        <div class="info-label">Device IP</div>
+        <div id="device-ip" class="info-value">-</div>
+      </div>
+      <div class="info-item">
+        <div class="info-label">Latency</div>
+        <div id="ping-time" class="info-value">-</div>
+      </div>
+      <div class="info-item">
+        <div class="info-label">Battery</div>
+        <div id="battery" class="info-value">-</div>
       </div>
     </div>
+
+    <!-- Hidden Elements -->
+    <audio id="audio" autoplay="true"></audio>
+    <video id="video" playsinline autoplay muted loop style="display:none;"></video>
 
   </div>
   <script src="/static/js/jsmain.js" type="module"></script>
