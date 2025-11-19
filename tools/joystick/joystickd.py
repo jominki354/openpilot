@@ -9,14 +9,14 @@ from openpilot.common.params import Params
 from openpilot.common.swaglog import cloudlog
 
 LongCtrlState = car.CarControl.Actuators.LongControlState
-MAX_LAT_ACCEL = 2.5
+MAX_LAT_ACCEL = 3.75
 
 
 def joystickd_thread():
   import time
   params = Params()
   cloudlog.info("joystickd is waiting for CarParams")
-  
+
   # Wait for CarParams with timeout
   timeout = 30  # 30 seconds
   start_time = time.time()
@@ -28,11 +28,11 @@ def joystickd_thread():
       cloudlog.info("joystickd: CarParams loaded successfully")
       break
     time.sleep(0.5)
-  
+
   if CP is None:
     cloudlog.warning("joystickd: CarParams not available after 30s, using default vehicle model")
     CP = car.CarParams.new_message()
-  
+
   VM = VehicleModel(CP)
 
   # Default values are now set in manager.py get_default_params()
@@ -68,13 +68,13 @@ def joystickd_thread():
             return int(value)
           except (ValueError, TypeError):
             return default
-        
+
         steer_sensitivity = get_param_int("JoystickSteeringSensitivity", 100) / 100.0
         steer_gain = get_param_int("JoystickSteeringGain", 100) / 100.0
         accel_sensitivity = get_param_int("JoystickAccelSensitivity", 100) / 100.0
         accel_gain = get_param_int("JoystickAccelGain", 100) / 100.0
         deadzone = get_param_int("JoystickDeadzone", 0) / 100.0
-    
+
     param_update_counter += 1
 
     cc_msg = messaging.new_message('carControl')
@@ -86,6 +86,7 @@ def joystickd_thread():
     CC.longActive = True  # always allow acceleration
     CC.cruiseControl.cancel = sm['carState'].cruiseState.enabled and (not CC.enabled or not CP.pcmCruise)
     CC.hudControl.leadDistanceBars = 2
+    CC.hudControl.leadVisible = True
 
     actuators = CC.actuators
 
@@ -137,7 +138,14 @@ def joystickd_thread():
       accel_output = accel_input
 
     if CC.longActive:
-      actuators.accel = 4.0 * max(-1.0, min(1.0, accel_output))
+      # Apply Max Speed Limit
+      max_speed = params.get_int("JoystickMaxSpeed")
+      current_speed_kph = sm['carState'].vEgo * 3.6
+
+      if max_speed > 0 and current_speed_kph > max_speed and accel_output > 0:
+        accel_output = 0.0
+
+      actuators.accel = 6.0 * max(-1.0, min(1.0, accel_output))
       # Always use pid mode in joystick mode to allow starting from stop
       actuators.longControlState = LongCtrlState.pid
 

@@ -116,6 +116,13 @@ DeveloperPanel::DeveloperPanel(SettingsWindow *parent) : ListWidget(parent) {
                                        0, 20, 1);
   addItem(deadzoneControl);
 
+  // Joystick Max Speed
+  maxSpeedControl = new CValueControl("JoystickMaxSpeed",
+                                       tr("  최대 속도 제한"),
+                                       tr("0=제한없음(기본값), 1~250=속도제한(km/h)"),
+                                       0, 250, 5);
+  addItem(maxSpeedControl);
+
   // Show/hide detail controls based on smoothing toggle
   QObject::connect(joystickSmoothingToggle, &ParamControl::toggleFlipped, [=](bool enabled) {
     presetDefault->setVisible(enabled);
@@ -127,6 +134,7 @@ DeveloperPanel::DeveloperPanel(SettingsWindow *parent) : ListWidget(parent) {
     accelSensitivity->setVisible(enabled);
     accelGain->setVisible(enabled);
     deadzoneControl->setVisible(enabled);
+    maxSpeedControl->setVisible(enabled);
   });
 
   // Set initial visibility
@@ -140,6 +148,7 @@ DeveloperPanel::DeveloperPanel(SettingsWindow *parent) : ListWidget(parent) {
   accelSensitivity->setVisible(smoothingEnabled);
   accelGain->setVisible(smoothingEnabled);
   deadzoneControl->setVisible(smoothingEnabled);
+  maxSpeedControl->setVisible(smoothingEnabled);
 
   // Initialize default values if not set
   if (params.get("JoystickSteeringSensitivity").empty()) {
@@ -159,6 +168,9 @@ DeveloperPanel::DeveloperPanel(SettingsWindow *parent) : ListWidget(parent) {
   }
   if (params.get("JoystickPreset").empty()) {
     params.put("JoystickPreset", "기본값");
+  }
+  if (params.get("JoystickMaxSpeed").empty()) {
+    params.put("JoystickMaxSpeed", "0");
   }
 
   longManeuverToggle = new ParamControl("LongitudinalManeuverMode", tr("Longitudinal Maneuver Mode"), "", "");
@@ -188,14 +200,14 @@ DeveloperPanel::DeveloperPanel(SettingsWindow *parent) : ListWidget(parent) {
 
   // Toggles should be not available to change in onroad state
   QObject::connect(uiState(), &UIState::offroadTransition, this, &DeveloperPanel::updateToggles);
-  
+
   // Set initial preset button colors
   updatePresetButtons();
 }
 
 void DeveloperPanel::updatePresetButtons() {
   std::string preset = params.get("JoystickPreset");
-  
+
   const QString activeStyle = R"(
     QPushButton {
       background-color: #33Ab4C;
@@ -204,7 +216,7 @@ void DeveloperPanel::updatePresetButtons() {
       font-weight: bold;
     }
   )";
-  
+
   const QString normalStyle = R"(
     QPushButton {
       background-color: #393939;
@@ -212,13 +224,13 @@ void DeveloperPanel::updatePresetButtons() {
       border-radius: 30px;
     }
   )";
-  
+
   // Reset all buttons to normal style
   presetDefault->setStyleSheet(normalStyle);
   presetSoft->setStyleSheet(normalStyle);
   presetNormal->setStyleSheet(normalStyle);
   presetSport->setStyleSheet(normalStyle);
-  
+
   // Highlight active preset
   if (preset == "기본값") {
     presetDefault->setStyleSheet(activeStyle);
@@ -238,12 +250,14 @@ void DeveloperPanel::updateValueControls() {
   accelSensitivity->hide();
   accelGain->hide();
   deadzoneControl->hide();
-  
+  maxSpeedControl->hide();
+
   steeringSensitivity->show();
   steeringGain->show();
   accelSensitivity->show();
   accelGain->show();
   deadzoneControl->show();
+  maxSpeedControl->show();
 }
 
 void DeveloperPanel::updateToggles(bool _offroad) {

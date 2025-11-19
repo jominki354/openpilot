@@ -192,6 +192,7 @@ def get_default_params():
     ("JoystickAccelGain", "100"),
     ("JoystickDeadzone", "0"),
     ("JoystickPreset", "기본값"),
+    ("JoystickMaxSpeed", "0"),
   ]
   return default_params
 

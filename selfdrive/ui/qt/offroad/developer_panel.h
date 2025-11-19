@@ -25,6 +25,7 @@ private:
   CValueControl* accelSensitivity;
   CValueControl* accelGain;
   CValueControl* deadzoneControl;
+  CValueControl* maxSpeedControl;
   bool is_release;
   bool offroad = false;
 
