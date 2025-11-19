@@ -1,5 +1,11 @@
 const keyVals = { w: 0, a: 0, s: 0, d: 0 }
 
+// EXPO curve for smoother center control (matching joystick_control.py)
+const EXPO = 0.4;
+function applyExpo(value) {
+  return EXPO * Math.pow(value, 3) + (1 - EXPO) * value;
+}
+
 export function getXY() {
   // Keyboard input
   let x = -keyVals.w + keyVals.s
@@ -11,23 +17,15 @@ export function getXY() {
     const gp = gamepads[i];
     if (gp) {
       // PS5 Controller Mapping (Standard Gamepad API)
-      // IMPORTANT: joystick_control.py uses:
-      // - Comma 3X: accel=ABS_RX (Right Stick Y), steer=ABS_Z (Right Stick X)
-      // - flip_map: ABS_RY (L2 trigger) flips accel to negative (brake)
-      //
-      // Browser Gamepad API:
-      // - Axis 2: Right Stick X (Left/Right) -> Steering
-      // - Axis 5: Right Stick Y (Up/Down) -> Accel (Chrome/Firefox may differ)
-      // - buttons[6].value: L2 trigger (0~1) -> Brake
-      // - buttons[7].value: R2 trigger (0~1) -> Accel boost
+      // Comma 3X uses: accel=ABS_RX (Right Stick Y), steer=ABS_Z (Right Stick X)
+      // L2 trigger (button 6) = brake, R2 trigger (button 7) = gas
 
-      // Deadzone
-      const deadzone = 0.05;
+      const deadzone = 0.03; // 3% deadzone to match joystick_control.py
 
       let rightStickX = gp.axes[2]; // Right stick X -> Steer
-      let rightStickY = gp.axes[5]; // Right stick Y -> Accel (may be axis 3 or 5)
+      let rightStickY = gp.axes[5]; // Right stick Y -> Accel
 
-      // Fallback: try axis 3 if axis 5 is undefined
+      // Fallback: try axis 3 if axis 5 is undefined (browser compatibility)
       if (rightStickY === undefined || rightStickY === null) {
         rightStickY = gp.axes[3];
       }
@@ -35,28 +33,25 @@ export function getXY() {
       let l2 = gp.buttons[6] ? gp.buttons[6].value : 0; // L2 trigger (brake)
       let r2 = gp.buttons[7] ? gp.buttons[7].value : 0; // R2 trigger (accel)
 
+      // Apply deadzone
       if (Math.abs(rightStickX) < deadzone) rightStickX = 0;
       if (Math.abs(rightStickY) < deadzone) rightStickY = 0;
 
-      // Mix gamepad input if active (override keyboard)
+      // Override keyboard if gamepad is active
       if (Math.abs(rightStickX) > 0 || Math.abs(rightStickY) > 0 || l2 > 0 || r2 > 0) {
-        // joystickd expects:
-        // axes[0] = Accel (-1 to 1): negative = brake, positive = gas
-        // axes[1] = Steer (-1 to 1)
-
         // Calculate accel from stick + triggers
         let accel = -rightStickY; // Invert: Up (-1) becomes Gas (+1)
 
-        // L2 = brake (negative accel), R2 = gas (positive accel)
-        // Triggers override stick
+        // Triggers override stick (higher priority)
         if (l2 > deadzone) {
           accel = -l2; // L2 is brake (negative)
         } else if (r2 > deadzone) {
           accel = r2; // R2 is gas (positive)
         }
 
-        x = accel;
-        y = -rightStickX; // Invert: Left (-1) becomes Left steer (+1)
+        // Apply EXPO curve for fine control
+        x = applyExpo(accel);
+        y = applyExpo(-rightStickX); // Invert: Left (-1) becomes Left steer (+1)
       }
     }
   }
@@ -73,7 +68,7 @@ export const handleKeyX = (key, setValue) => {
     }
     $("#key-" + key).css('background', color);
     const { x, y } = getXY();
-    $("#pos-vals").text(x + "," + y);
+    $("#pos-vals").text(x.toFixed(3) + "," + y.toFixed(3));
   }
 };
 

@@ -1,4 +1,4 @@
-import { handleKeyX, executePlan } from "./controls.js";
+import { handleKeyX, executePlan, getXY } from "./controls.js";
 import { start, stop, lastChannelMessageTime, playSoundRequest } from "./webrtc.js";
 
 export var pc = null;
@@ -6,18 +6,53 @@ export var dc = null;
 
 document.addEventListener('keydown', (e) => (handleKeyX(e.key.toLowerCase(), 1)));
 document.addEventListener('keyup', (e) => (handleKeyX(e.key.toLowerCase(), 0)));
-$(".keys").bind("mousedown touchstart", (e) => handleKeyX($(e.target).attr('id').replace('key-', ''), 1));
-$(".keys").bind("mouseup touchend", (e) => handleKeyX($(e.target).attr('id').replace('key-', ''), 0));
-$("#plan-button").click(executePlan);
+$(".key").bind("mousedown touchstart", (e) => handleKeyX($(e.target).attr('id').replace('key-', ''), 1));
+$(".key").bind("mouseup touchend", (e) => handleKeyX($(e.target).attr('id').replace('key-', ''), 0));
 $(".sound").click((e) => {
   const sound = $(e.target).attr('id').replace('sound-', '')
   return playSoundRequest(sound);
 });
 
+// Update input visualization
+setInterval(() => {
+  const { x, y } = getXY();
+
+  // Update accel meter
+  $("#accel-value").text(x.toFixed(3));
+  if (x >= 0) {
+    $("#accel-fill").css({
+      "left": "50%",
+      "width": (x * 50) + "%",
+      "background": "linear-gradient(90deg, #10b981, #059669)"
+    });
+  } else {
+    $("#accel-fill").css({
+      "left": (50 + x * 50) + "%",
+      "width": (-x * 50) + "%",
+      "background": "linear-gradient(90deg, #dc2626, #ef4444)"
+    });
+  }
+
+  // Update steer meter
+  $("#steer-value").text(y.toFixed(3));
+  if (y >= 0) {
+    $("#steer-fill").css({
+      "left": "50%",
+      "width": (y * 50) + "%",
+      "background": "linear-gradient(90deg, #6366f1, #8b5cf6)"
+    });
+  } else {
+    $("#steer-fill").css({
+      "left": (50 + y * 50) + "%",
+      "width": (-y * 50) + "%",
+      "background": "linear-gradient(90deg, #8b5cf6, #6366f1)"
+    });
+  }
+}, 50);
+
 setInterval(() => {
   const dt = new Date().getTime();
   if ((dt - lastChannelMessageTime) > 1000) {
-    $(".pre-blob").removeClass('blob');
     $("#battery").text("-");
     $("#ping-time").text('-');
     $("video")[0].load();
@@ -27,12 +62,12 @@ setInterval(() => {
 // Gamepad connection monitoring
 window.addEventListener("gamepadconnected", (e) => {
   console.log("Gamepad connected:", e.gamepad.id);
-  $("#gamepad-status").text("Gamepad: " + e.gamepad.id).css("color", "#33ab4c");
+  $("#gamepad-status-value").text(e.gamepad.id).removeClass("disconnected").addClass("connected");
 });
 
 window.addEventListener("gamepaddisconnected", (e) => {
   console.log("Gamepad disconnected");
-  $("#gamepad-status").text("Gamepad: Not Connected").css("color", "#888");
+  $("#gamepad-status-value").text("Not Connected").removeClass("connected").addClass("disconnected");
 });
 
 // Check for already connected gamepads on page load
@@ -40,7 +75,7 @@ const checkGamepads = () => {
   const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
   for (let i = 0; i < gamepads.length; i++) {
     if (gamepads[i]) {
-      $("#gamepad-status").text("Gamepad: " + gamepads[i].id).css("color", "#33ab4c");
+      $("#gamepad-status-value").text(gamepads[i].id).removeClass("disconnected").addClass("connected");
       return;
     }
   }
