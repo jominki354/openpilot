@@ -1,6 +1,15 @@
+#!/usr/bin/env python3
+import os
+import sys
+
+# Add openpilot root to path for imports to work on device
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+OPENPILOT_ROOT = os.path.dirname(os.path.dirname(SCRIPT_DIR))
+if OPENPILOT_ROOT not in sys.path:
+  sys.path.insert(0, OPENPILOT_ROOT)
+
 import json
 import logging
-import os
 import ssl
 import subprocess
 import threading
@@ -16,14 +25,8 @@ except ImportError:
 import wave
 
 import requests
-
-# Handle imports for both local development and device
-try:
-  from openpilot.common.basedir import BASEDIR
-  from openpilot.common.params import Params
-except ModuleNotFoundError:
-  from common.basedir import BASEDIR
-  from common.params import Params
+from openpilot.common.basedir import BASEDIR
+from openpilot.common.params import Params
 
 logger = logging.getLogger("bodyteleop")
 logging.basicConfig(level=logging.INFO)
