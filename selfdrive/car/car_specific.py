@@ -190,7 +190,7 @@ class CarSpecificEvents:
     
     if CS.doorOpen and not self.mute_door:
       events.add(EventName.doorOpen)
-    if CS.seatbeltUnlatched and not self.mute_seatbelt:
+    if CS.seatbeltUnlatched and not self.mute_seatbelt and not self.params.get_bool("JoystickDebugMode"):
       events.add(EventName.seatbeltNotLatched)
     if CS.gearShifter == GearShifter.park:
       events.add(EventName.wrongGear)
