@@ -134,7 +134,7 @@ DeveloperPanel::DeveloperPanel(SettingsWindow *parent) : ListWidget(parent) {
     accelSensitivity->setVisible(enabled);
     accelGain->setVisible(enabled);
     deadzoneControl->setVisible(enabled);
-    maxSpeedControl->setVisible(enabled);
+    // maxSpeedControl->setVisible(enabled); // Always show max speed control
   });
 
   // Set initial visibility
@@ -148,7 +148,7 @@ DeveloperPanel::DeveloperPanel(SettingsWindow *parent) : ListWidget(parent) {
   accelSensitivity->setVisible(smoothingEnabled);
   accelGain->setVisible(smoothingEnabled);
   deadzoneControl->setVisible(smoothingEnabled);
-  maxSpeedControl->setVisible(smoothingEnabled);
+  maxSpeedControl->setVisible(true); // Always show max speed control
 
   // Initialize default values if not set
   if (params.get("JoystickSteeringSensitivity").empty()) {
