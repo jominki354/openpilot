@@ -70,6 +70,7 @@ inline static std::unordered_map<std::string, uint32_t> keys = {
     {"JoystickAccelGain", PERSISTENT},
     {"JoystickDeadzone", PERSISTENT},
     {"JoystickPreset", PERSISTENT},
+    {"JoystickMaxSpeed", PERSISTENT},
     {"LanguageSetting", PERSISTENT},
     {"LastAthenaPingTime", CLEAR_ON_MANAGER_START},
     {"LastGPSPosition", PERSISTENT},
