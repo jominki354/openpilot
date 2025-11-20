@@ -1,13 +1,6 @@
 #!/usr/bin/env python3
 import os
 import sys
-
-# Add openpilot root to path for imports to work on device
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-OPENPILOT_ROOT = os.path.dirname(os.path.dirname(SCRIPT_DIR))
-if OPENPILOT_ROOT not in sys.path:
-  sys.path.insert(0, OPENPILOT_ROOT)
-
 import json
 import logging
 import ssl
@@ -17,19 +10,33 @@ import time
 import http.server
 import socketserver
 from urllib.parse import urlparse
+import wave
+
+# Setup logging to file for debugging
+logging.basicConfig(filename='/tmp/web_debug.log', level=logging.DEBUG, format='%(asctime)s %(message)s')
+logger = logging.getLogger("bodyteleop")
+logger.addHandler(logging.StreamHandler(sys.stdout)) # Also print to stdout
+
+# Add openpilot root to path for imports to work on device
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+OPENPILOT_ROOT = os.path.dirname(os.path.dirname(SCRIPT_DIR))
+if OPENPILOT_ROOT not in sys.path:
+  sys.path.insert(0, OPENPILOT_ROOT)
 
 try:
   import pyaudio
 except ImportError:
   pyaudio = None
-import wave
+  logger.warning("pyaudio not found, sound will be disabled")
 
-import requests
+try:
+  import requests
+except ImportError:
+  logger.error("requests not found")
+  requests = None
+
 from openpilot.common.basedir import BASEDIR
 from openpilot.common.params import Params
-
-logger = logging.getLogger("bodyteleop")
-logging.basicConfig(level=logging.INFO)
 
 TELEOPDIR = f"{BASEDIR}/tools/bodyteleop"
 WEBRTCD_HOST, WEBRTCD_PORT = "localhost", 5001
@@ -174,15 +181,18 @@ class BodyTeleopHandler(http.server.SimpleHTTPRequestHandler):
     
     try:
       # Use requests (synchronous) instead of aiohttp
-      response = requests.post(webrtcd_url, json=body, timeout=5)
-      if response.status_code == 200:
-        answer = response.json()
-        self.send_response(200)
-        self.send_header("Content-type", "application/json")
-        self.end_headers()
-        self.wfile.write(json.dumps(answer).encode('utf-8'))
+      if requests:
+        response = requests.post(webrtcd_url, json=body, timeout=5)
+        if response.status_code == 200:
+          answer = response.json()
+          self.send_response(200)
+          self.send_header("Content-type", "application/json")
+          self.end_headers()
+          self.wfile.write(json.dumps(answer).encode('utf-8'))
+        else:
+          self.send_error(502, f"webrtcd returned {response.status_code}")
       else:
-        self.send_error(502, f"webrtcd returned {response.status_code}")
+        self.send_error(500, "requests library not available")
     except Exception as e:
       logger.error(f"Error contacting webrtcd: {e}")
       self.send_error(502, "Failed to contact webrtcd")
@@ -200,18 +210,20 @@ class BodyTeleopHandler(http.server.SimpleHTTPRequestHandler):
 
 
 def main():
+  logger.info("Starting web.py main...")
   # Enable joystick debug mode
   Params().put_bool("JoystickDebugMode", True)
 
   # Create SSL context
   ssl_context = create_ssl_context()
 
-  PORT = 5000
+  PORT = 5002
   Handler = BodyTeleopHandler
 
   # Allow address reuse
   socketserver.TCPServer.allow_reuse_address = True
 
+  logger.info(f"Attempting to bind to 0.0.0.0:{PORT}")
   with socketserver.TCPServer(("0.0.0.0", PORT), Handler) as httpd:
     # Wrap the socket with SSL
     httpd.socket = ssl_context.wrap_socket(httpd.socket, server_side=True)
@@ -223,7 +235,6 @@ def main():
       pass
     finally:
       httpd.server_close()
-
 
 if __name__ == "__main__":
   main()
