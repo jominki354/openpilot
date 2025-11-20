@@ -11,47 +11,63 @@ export function getXY() {
   let x = -keyVals.w + keyVals.s
   let y = -keyVals.d + keyVals.a
 
-  // Gamepad input (PS5 DualSense - matching joystick_control.py)
+  // Gamepad input
   const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
   for (let i = 0; i < gamepads.length; i++) {
     const gp = gamepads[i];
     if (gp) {
-      // PS5 Controller Mapping (Standard Gamepad API)
-      // Comma 3X uses: accel=ABS_RX (Right Stick Y), steer=ABS_Z (Right Stick X)
-      // L2 trigger (button 6) = brake, R2 trigger (button 7) = gas
+      const deadzone = 0.05; // Increased deadzone slightly
 
-      const deadzone = 0.03; // 3% deadzone to match joystick_control.py
+      // Debug: Log axes to help user find correct mapping
+      // This will be displayed in the UI if we add a debug element
 
-      let rightStickX = gp.axes[2]; // Right stick X -> Steer
-      let rightStickY = gp.axes[5]; // Right stick Y -> Accel
+      // Try to detect which stick is being used (Left or Right)
+      // Standard: Left(0,1), Right(2,3)
+      // Android/Some controllers might be different
 
-      // Fallback: try axis 3 if axis 5 is undefined (browser compatibility)
-      if (rightStickY === undefined || rightStickY === null) {
-        rightStickY = gp.axes[3];
+      let axis0 = gp.axes[0] || 0; // Left Stick X
+      let axis1 = gp.axes[1] || 0; // Left Stick Y
+      let axis2 = gp.axes[2] || 0; // Right Stick X
+      let axis3 = gp.axes[3] || 0; // Right Stick Y (Standard)
+      let axis5 = gp.axes[5] || 0; // Right Stick Y (Some controllers)
+
+      let steer = 0;
+      let accel = 0;
+
+      // Check Right Stick first (Preferred)
+      if (Math.abs(axis2) > deadzone || Math.abs(axis3) > deadzone || Math.abs(axis5) > deadzone) {
+        steer = axis2;
+        // Use axis 3 or 5, whichever has input
+        accel = (Math.abs(axis3) > Math.abs(axis5)) ? -axis3 : -axis5;
+      }
+      // Fallback to Left Stick if Right Stick is idle
+      else if (Math.abs(axis0) > deadzone || Math.abs(axis1) > deadzone) {
+        steer = axis0;
+        accel = -axis1;
       }
 
-      let l2 = gp.buttons[6] ? gp.buttons[6].value : 0; // L2 trigger (brake)
-      let r2 = gp.buttons[7] ? gp.buttons[7].value : 0; // R2 trigger (accel)
+      // Triggers for Accel/Brake (L2/R2)
+      let l2 = 0;
+      let r2 = 0;
 
-      // Apply deadzone
-      if (Math.abs(rightStickX) < deadzone) rightStickX = 0;
-      if (Math.abs(rightStickY) < deadzone) rightStickY = 0;
+      // Button objects (Standard)
+      if (gp.buttons[6]) l2 = gp.buttons[6].value;
+      if (gp.buttons[7]) r2 = gp.buttons[7].value;
 
-      // Override keyboard if gamepad is active
-      if (Math.abs(rightStickX) > 0 || Math.abs(rightStickY) > 0 || l2 > 0 || r2 > 0) {
-        // Calculate accel from stick + triggers
-        let accel = -rightStickY; // Invert: Up (-1) becomes Gas (+1)
+      // Apply deadzone to triggers
+      if (l2 < deadzone) l2 = 0;
+      if (r2 < deadzone) r2 = 0;
 
-        // Triggers override stick (higher priority)
-        if (l2 > deadzone) {
-          accel = -l2; // L2 is brake (negative)
-        } else if (r2 > deadzone) {
-          accel = r2; // R2 is gas (positive)
-        }
+      // Override stick accel if triggers are used
+      if (l2 > 0 || r2 > 0) {
+        if (l2 > 0) accel = -l2; // Brake
+        if (r2 > 0) accel = r2;  // Gas
+      }
 
-        // Apply EXPO curve for fine control
+      // Apply EXPO and update x, y if there is any input
+      if (Math.abs(steer) > deadzone || Math.abs(accel) > deadzone || l2 > 0 || r2 > 0) {
         x = applyExpo(accel);
-        y = applyExpo(-rightStickX); // Invert: Left (-1) becomes Left steer (+1)
+        y = applyExpo(-steer); // Invert steer for correct direction
       }
     }
   }

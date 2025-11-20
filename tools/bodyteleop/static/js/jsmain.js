@@ -79,26 +79,52 @@ setInterval(() => {
 }, 5000);
 
 // Gamepad connection monitoring
-window.addEventListener("gamepadconnected", (e) => {
-  console.log("Gamepad connected:", e.gamepad.id);
-  $("#gamepad-status-main").text(e.gamepad.id).removeClass("disconnected").addClass("connected");
-});
+// We use polling instead of events because Android Chrome often misses events
+// until a button is pressed.
 
-window.addEventListener("gamepaddisconnected", (e) => {
-  console.log("Gamepad disconnected");
-  $("#gamepad-status-main").text("Connect Your PS5 Controller").removeClass("connected").addClass("disconnected");
-});
-
-// Check for already connected gamepads on page load
-const checkGamepads = () => {
+// Check for gamepads in the main loop
+setInterval(() => {
   const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+  let connected = false;
+  let gpId = "";
+  let debugInfo = "";
+
   for (let i = 0; i < gamepads.length; i++) {
-    if (gamepads[i]) {
-      $("#gamepad-status-main").text(gamepads[i].id).removeClass("disconnected").addClass("connected");
-      return;
+    const gp = gamepads[i];
+    if (gp) {
+      connected = true;
+      gpId = gp.id;
+
+      // Debug info: show axis values to help troubleshooting
+      // Show first 6 axes
+      let axesStr = "";
+      for (let j = 0; j < Math.min(gp.axes.length, 6); j++) {
+        axesStr += `A${j}:${gp.axes[j].toFixed(1)} `;
+      }
+      debugInfo = axesStr;
+      break; // Use the first connected gamepad
     }
   }
-};
-checkGamepads();
+
+  const statusEl = $("#gamepad-status-main");
+  if (connected) {
+    if (!statusEl.hasClass("connected")) {
+      statusEl.removeClass("disconnected").addClass("connected");
+    }
+    // Update text with ID and Debug info
+    // Truncate ID if too long
+    let shortId = gpId.length > 20 ? gpId.substring(0, 20) + "..." : gpId;
+    statusEl.text(`${shortId} [${debugInfo}]`);
+  } else {
+    if (!statusEl.hasClass("disconnected")) {
+      statusEl.removeClass("connected").addClass("disconnected");
+      statusEl.text("Connect Your PS5 Controller");
+    }
+  }
+}, 500); // Check every 500ms
+
+// Initial check (optional, as interval covers it)
+// const checkGamepads = () => { ... }; 
+// checkGamepads();
 
 start(pc, dc);
