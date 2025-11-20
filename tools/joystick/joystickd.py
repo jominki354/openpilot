@@ -1,4 +1,12 @@
 #!/usr/bin/env python3
+import os
+import sys
+
+# Add openpilot root to path for imports to work on device
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+OPENPILOT_ROOT = os.path.dirname(os.path.dirname(SCRIPT_DIR))
+if OPENPILOT_ROOT not in sys.path:
+  sys.path.insert(0, OPENPILOT_ROOT)
 
 import math
 
