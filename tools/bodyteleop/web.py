@@ -6,7 +6,10 @@ import os
 import ssl
 import subprocess
 
-import pyaudio
+try:
+  import pyaudio
+except ImportError:
+  pyaudio = None
 import wave
 from aiohttp import web
 from aiohttp import ClientSession
@@ -30,6 +33,9 @@ async def play_sound(sound: str):
     "error": "selfdrive/assets/sounds/warning_immediate.wav",
   }
   assert sound in SOUNDS
+
+  if pyaudio is None:
+    return
 
   chunk = 5120
   with wave.open(os.path.join(BASEDIR, SOUNDS[sound]), "rb") as wf:
