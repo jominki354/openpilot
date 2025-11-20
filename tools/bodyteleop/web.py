@@ -16,8 +16,14 @@ except ImportError:
 import wave
 
 import requests
-from openpilot.common.basedir import BASEDIR
-from openpilot.common.params import Params
+
+# Handle imports for both local development and device
+try:
+  from openpilot.common.basedir import BASEDIR
+  from openpilot.common.params import Params
+except ModuleNotFoundError:
+  from common.basedir import BASEDIR
+  from common.params import Params
 
 logger = logging.getLogger("bodyteleop")
 logging.basicConfig(level=logging.INFO)
