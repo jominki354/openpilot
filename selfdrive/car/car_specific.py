@@ -188,7 +188,7 @@ class CarSpecificEvents:
                            allow_enable=True, allow_button_cancel=True):
     events = Events()
     
-    if CS.doorOpen and not self.mute_door:
+    if CS.doorOpen and not self.mute_door and not self.params.get_bool("JoystickDebugMode"):
       events.add(EventName.doorOpen)
     if CS.seatbeltUnlatched and not self.mute_seatbelt and not self.params.get_bool("JoystickDebugMode"):
       events.add(EventName.seatbeltNotLatched)
