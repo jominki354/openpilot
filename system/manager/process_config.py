@@ -41,7 +41,7 @@ def ublox(started: bool, params: Params, CP: car.CarParams) -> bool:
 
 
 def joystick(started: bool, params: Params, CP: car.CarParams) -> bool:
-  return started and params.get_bool("JoystickDebugMode")
+  return params.get_bool("JoystickDebugMode")
 
 
 def not_joystick(started: bool, params: Params, CP: car.CarParams) -> bool:
