@@ -110,7 +110,7 @@ procs = [
   PythonProcess("webcamerad", "tools.webcam.camerad", driverview, enabled=WEBCAM),
   NativeProcess("logcatd", "system/logcatd", ["./logcatd"], only_onroad),
   NativeProcess("proclogd", "system/proclogd", ["./proclogd"], only_onroad),
-  PythonProcess("micd", "system.micd", iscar),
+  PythonProcess("micd", "system.micd", and_(not_joystick, iscar)),
   PythonProcess("timed", "system.timed", always_run, enabled=not PC),
   # TODO: Make python process once TG allows opening QCOM from child pro
   # https://github.com/tinygrad/tinygrad/blob/ac9c96dae1656dc220ee4acc39cef4dd449aa850/tinygrad/device.py#L26

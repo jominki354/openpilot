@@ -356,6 +356,8 @@ def manager_thread() -> None:
         managed_processes["joystickd"].stop(block=True, sig=signal.SIGKILL)
       if "joystick" in managed_processes:
         managed_processes["joystick"].stop(block=True, sig=signal.SIGKILL)
+      if "webjoystick" in managed_processes:
+        managed_processes["webjoystick"].stop(block=True, sig=signal.SIGKILL)
       joystick_mode_prev = joystick_mode
 
     ensure_running(managed_processes.values(), started, params=params, CP=sm['carParams'], not_run=ignore)
