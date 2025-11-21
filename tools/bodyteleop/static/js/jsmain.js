@@ -88,6 +88,7 @@ setInterval(() => {
   let connected = false;
   let gpId = "";
   let debugInfo = "";
+  let logMsg = "Checking gamepads...\n";
 
   for (let i = 0; i < gamepads.length; i++) {
     const gp = gamepads[i];
@@ -98,13 +99,28 @@ setInterval(() => {
       // Debug info: show axis values to help troubleshooting
       // Show first 6 axes
       let axesStr = "";
-      for (let j = 0; j < Math.min(gp.axes.length, 6); j++) {
-        axesStr += `A${j}:${gp.axes[j].toFixed(1)} `;
+      for (let j = 0; j < Math.min(gp.axes.length, 8); j++) {
+        axesStr += `A${j}:${gp.axes[j].toFixed(2)} `;
       }
+      let buttonsStr = "";
+      for (let j = 0; j < Math.min(gp.buttons.length, 8); j++) {
+        buttonsStr += `B${j}:${gp.buttons[j].value.toFixed(1)} `;
+      }
+
       debugInfo = axesStr;
+      logMsg += `[GP${i}] ID: ${gp.id}\nAxes: ${axesStr}\nBtns: ${buttonsStr}\n`;
       break; // Use the first connected gamepad
+    } else {
+      logMsg += `[GP${i}] null\n`;
     }
   }
+
+  if (gamepads.length === 0) {
+    logMsg += "No gamepads detected by browser.\nTry pressing buttons on the controller.";
+  }
+
+  // Update Debug Console
+  $("#debug-console").text(logMsg);
 
   const statusEl = $("#gamepad-status-main");
   if (connected) {
@@ -121,10 +137,6 @@ setInterval(() => {
       statusEl.text("Connect Your PS5 Controller");
     }
   }
-}, 500); // Check every 500ms
-
-// Initial check (optional, as interval covers it)
-// const checkGamepads = () => { ... }; 
-// checkGamepads();
+}, 200); // Check every 200ms for smoother debug updates
 
 start(pc, dc);

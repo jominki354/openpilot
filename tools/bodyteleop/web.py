@@ -11,9 +11,15 @@ import http.server
 import socketserver
 from urllib.parse import urlparse
 import wave
+import base64
+import hashlib
+import struct
+
+import tempfile
 
 # Setup logging to file for debugging
-logging.basicConfig(filename='/tmp/web_debug.log', level=logging.DEBUG, format='%(asctime)s %(message)s')
+log_path = os.path.join(tempfile.gettempdir(), 'web_debug.log')
+logging.basicConfig(filename=log_path, level=logging.DEBUG, format='%(asctime)s %(message)s')
 logger = logging.getLogger("bodyteleop")
 logger.addHandler(logging.StreamHandler(sys.stdout)) # Also print to stdout
 
@@ -22,6 +28,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 OPENPILOT_ROOT = os.path.dirname(os.path.dirname(SCRIPT_DIR))
 if OPENPILOT_ROOT not in sys.path:
   sys.path.insert(0, OPENPILOT_ROOT)
+  sys.path.insert(0, os.path.dirname(OPENPILOT_ROOT)) # Add parent to allow 'import openpilot'
 
 try:
   import pyaudio
@@ -35,8 +42,48 @@ except ImportError:
   logger.error("requests not found")
   requests = None
 
-from openpilot.common.basedir import BASEDIR
-from openpilot.common.params import Params
+try:
+  from openpilot.common.basedir import BASEDIR
+  from openpilot.common.params import Params
+except ImportError:
+  try:
+    import common.basedir
+    import common.params
+    BASEDIR = common.basedir.BASEDIR
+    Params = common.params.Params
+  except ImportError:
+    logger.warning("Could not import BASEDIR or Params, using mocks")
+    BASEDIR = tempfile.gettempdir()
+    class MockParams:
+      def put_bool(self, key, val):
+        logger.info(f"Mock Params put_bool: {key}={val}")
+      def get_bool(self, key):
+        return False
+    Params = MockParams
+    
+  # Inject into sys.modules to fix cereal imports if possible
+  import sys
+  import common
+  sys.modules["openpilot.common"] = common
+
+try:
+  from cereal import messaging
+except Exception:
+  logger.warning("cereal not found, using mock messaging")
+  class MockMessaging:
+    def PubMaster(self, services):
+      return self
+    def new_message(self, service):
+      class Msg:
+        def __init__(self):
+          self.valid = True
+          self.testJoystick = self
+          self.axes = []
+          self.buttons = []
+      return Msg()
+    def send(self, service, msg):
+      logger.info(f"Mock send to {service}: axes={msg.testJoystick.axes}")
+  messaging = MockMessaging()
 
 TELEOPDIR = f"{BASEDIR}/tools/bodyteleop"
 WEBRTCD_HOST, WEBRTCD_PORT = "localhost", 5001
@@ -107,6 +154,10 @@ def create_ssl_context():
 
 class BodyTeleopHandler(http.server.SimpleHTTPRequestHandler):
   def do_GET(self):
+    if self.headers.get("Upgrade", "").lower() == "websocket":
+      self.handle_websocket()
+      return
+
     if self.path == "/":
       self.path = "/static/index.html"
     elif self.path == "/ping":
@@ -118,22 +169,95 @@ class BodyTeleopHandler(http.server.SimpleHTTPRequestHandler):
     
     # Serve static files from the correct directory
     if self.path.startswith("/static/"):
-      # Remove /static/ prefix because we set directory to TELEOPDIR/static
-      # But SimpleHTTPRequestHandler serves relative to current working directory or 'directory' arg in Python 3.7+
-      # Since we can't easily change the root per request, we'll handle file reading manually for safety
-      # or just map the path.
-      
-      # Let's map /static to TELEOPDIR/static
       file_path = os.path.join(TELEOPDIR, self.path.lstrip("/"))
       if os.path.exists(file_path) and os.path.isfile(file_path):
-        super().do_GET() # This might try to serve from CWD. Let's fix directory.
+        super().do_GET()
         return
       else:
         self.send_error(404, "File not found")
         return
 
-    # Fallback to default behavior (will likely 404 if not in CWD)
+    # Fallback to default behavior
     super().do_GET()
+
+  def handle_websocket(self):
+    # WebSocket Handshake
+    key = self.headers.get("Sec-WebSocket-Key")
+    if not key:
+      self.send_error(400, "Missing Sec-WebSocket-Key")
+      return
+    
+    accept_key = base64.b64encode(hashlib.sha1((key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").encode()).digest()).decode()
+    
+    self.send_response(101)
+    self.send_header("Upgrade", "websocket")
+    self.send_header("Connection", "Upgrade")
+    self.send_header("Sec-WebSocket-Accept", accept_key)
+    self.end_headers()
+    
+    logger.info("WebSocket connection established")
+    
+    pm = messaging.PubMaster(['testJoystick'])
+    
+    try:
+      while True:
+        # Read frame
+        data = self.rfile.read(2)
+        if not data or len(data) < 2:
+          break
+          
+        byte1, byte2 = struct.unpack("BB", data)
+        opcode = byte1 & 0x0F
+        masked = (byte2 & 0x80) >> 7
+        payload_len = byte2 & 0x7F
+        
+        if opcode == 0x8: # Close
+          logger.info("WebSocket close frame received")
+          break
+          
+        if payload_len == 126:
+          data = self.rfile.read(2)
+          payload_len = struct.unpack(">H", data)[0]
+        elif payload_len == 127:
+          data = self.rfile.read(8)
+          payload_len = struct.unpack(">Q", data)[0]
+          
+        masks = None
+        if masked:
+          masks = self.rfile.read(4)
+          
+        payload = self.rfile.read(payload_len)
+        
+        if masked:
+          payload = bytearray(payload)
+          for i in range(len(payload)):
+            payload[i] ^= masks[i % 4]
+          payload = bytes(payload)
+          
+        if opcode == 0x1: # Text frame
+          try:
+            msg = json.loads(payload.decode('utf-8'))
+            if msg.get("type") == "testJoystick":
+              # Format: {"type": "testJoystick", "data": {"axes": [accel, steer], "buttons": [false]}}
+              data = msg.get("data", {})
+              axes = data.get("axes", [0.0, 0.0])
+              
+              # Publish to ZMQ
+              joystick_msg = messaging.new_message('testJoystick')
+              joystick_msg.valid = True
+              joystick_msg.testJoystick.axes = axes
+              joystick_msg.testJoystick.buttons = [False] # Default buttons
+              pm.send('testJoystick', joystick_msg)
+              
+          except json.JSONDecodeError:
+            logger.warning("Invalid JSON received over WebSocket")
+          except Exception as e:
+            logger.error(f"Error processing WebSocket message: {e}")
+            
+    except Exception as e:
+      logger.error(f"WebSocket connection error: {e}")
+    finally:
+      logger.info("WebSocket connection closed")
 
   def translate_path(self, path):
     # Override translate_path to serve files from TELEOPDIR
@@ -215,7 +339,11 @@ def main():
   Params().put_bool("JoystickDebugMode", True)
 
   # Create SSL context
-  ssl_context = create_ssl_context()
+  ssl_context = None
+  try:
+    ssl_context = create_ssl_context()
+  except Exception as e:
+    logger.error(f"Failed to create SSL context: {e}. Falling back to HTTP.")
 
   PORT = 5002
   Handler = BodyTeleopHandler
@@ -225,10 +353,13 @@ def main():
 
   logger.info(f"Attempting to bind to 0.0.0.0:{PORT}")
   with socketserver.TCPServer(("0.0.0.0", PORT), Handler) as httpd:
-    # Wrap the socket with SSL
-    httpd.socket = ssl_context.wrap_socket(httpd.socket, server_side=True)
+    # Wrap the socket with SSL if available
+    if ssl_context:
+      httpd.socket = ssl_context.wrap_socket(httpd.socket, server_side=True)
+      logger.info(f"Serving at https://0.0.0.0:{PORT}")
+    else:
+      logger.info(f"Serving at http://0.0.0.0:{PORT}")
     
-    logger.info(f"Serving at https://0.0.0.0:{PORT}")
     try:
       httpd.serve_forever()
     except KeyboardInterrupt:
