@@ -327,6 +327,7 @@ def manager_thread() -> None:
   print_timer = 0
 
   started_prev = False
+  joystick_mode_prev = params.get_bool("JoystickDebugMode")
 
   while True:
     sm.update(1000)
@@ -343,6 +344,17 @@ def manager_thread() -> None:
       write_onroad_params(started, params)
 
     started_prev = started
+
+    # Detect JoystickDebugMode changes and restart affected processes immediately
+    joystick_mode = params.get_bool("JoystickDebugMode")
+    if joystick_mode != joystick_mode_prev:
+      cloudlog.info(f"JoystickDebugMode changed from {joystick_mode_prev} to {joystick_mode}, restarting controlsd and joystickd")
+      # Force restart affected processes
+      if "controlsd" in managed_processes:
+        managed_processes["controlsd"].stop(block=True, sig=signal.SIGKILL)
+      if "joystickd" in managed_processes:
+        managed_processes["joystickd"].stop(block=True, sig=signal.SIGKILL)
+      joystick_mode_prev = joystick_mode
 
     ensure_running(managed_processes.values(), started, params=params, CP=sm['carParams'], not_run=ignore)
 
