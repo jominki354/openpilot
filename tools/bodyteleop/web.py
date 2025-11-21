@@ -31,10 +31,12 @@ if OPENPILOT_ROOT not in sys.path:
   sys.path.insert(0, os.path.dirname(OPENPILOT_ROOT)) # Add parent to allow 'import openpilot'
 
 try:
-  import pyaudio
+  import numpy as np
+  import sounddevice as sd
 except ImportError:
-  pyaudio = None
-  logger.warning("pyaudio not found, sound will be disabled")
+  np = None
+  sd = None
+  logger.warning("numpy or sounddevice not found, sound will be disabled")
 
 try:
   import requests
@@ -91,7 +93,7 @@ WEBRTCD_HOST, WEBRTCD_PORT = "localhost", 5001
 
 ## UTILS
 def play_sound(sound: str):
-  if pyaudio is None:
+  if np is None or sd is None:
     return
 
   SOUNDS = {
@@ -102,26 +104,27 @@ def play_sound(sound: str):
   if sound not in SOUNDS:
     return
 
-  chunk = 5120
   try:
     with wave.open(os.path.join(BASEDIR, SOUNDS[sound]), "rb") as wf:
-      def callback(in_data, frame_count, time_info, status):
-        data = wf.readframes(frame_count)
-        return data, pyaudio.paContinue
-
-      p = pyaudio.PyAudio()
-      stream = p.open(format=p.get_format_from_width(wf.getsampwidth()),
-                      channels=wf.getnchannels(),
-                      rate=wf.getframerate(),
-                      output=True,
-                      frames_per_buffer=chunk,
-                      stream_callback=callback)
-      stream.start_stream()
-      while stream.is_active():
-        time.sleep(0.1)
-      stream.stop_stream()
-      stream.close()
-      p.terminate()
+      fs = wf.getframerate()
+      nchannels = wf.getnchannels()
+      length = wf.getnframes()
+      frames = wf.readframes(length)
+      
+      # Convert to numpy array
+      audio_data = np.frombuffer(frames, dtype=np.int16)
+      
+      # Normalize to float32 [-1, 1]
+      audio_data = audio_data.astype(np.float32) / 32768.0
+      
+      # Reshape for channels if needed
+      if nchannels > 1:
+        audio_data = audio_data.reshape(-1, nchannels)
+      
+      # Play
+      sd.play(audio_data, fs)
+      sd.wait()
+      
   except Exception as e:
     logger.error(f"Error playing sound: {e}")
 
@@ -248,6 +251,11 @@ class BodyTeleopHandler(http.server.SimpleHTTPRequestHandler):
               joystick_msg.testJoystick.axes = axes
               joystick_msg.testJoystick.buttons = [False] # Default buttons
               pm.send('testJoystick', joystick_msg)
+            
+            elif msg.get("type") == "sound":
+              sound_to_play = msg.get("data")
+              if sound_to_play:
+                threading.Thread(target=play_sound, args=(sound_to_play,)).start()
               
           except json.JSONDecodeError:
             logger.warning("Invalid JSON received over WebSocket")
