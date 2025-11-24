@@ -22,8 +22,8 @@
 
 extern const LongitudinalLimits HYUNDAI_LONG_LIMITS;
 const LongitudinalLimits HYUNDAI_LONG_LIMITS = {
-  .max_accel = 250,   // 1/100 m/s2
-  .min_accel = -400,  // 1/100 m/s2
+  .max_accel = 500,   // 1/100 m/s2
+  .min_accel = -800,  // 1/100 m/s2
 };
 
 static const CanMsg HYUNDAI_TX_MSGS[] = {
@@ -150,7 +150,7 @@ static void hyundai_rx_hook(const CANPacket_t *to_push) {
 
     // ACC steering wheel buttons
     if (addr == 1007) hyundai_cruise_buttons_alt = true; // CASPER_EV: 1007
-    if (addr == 1007) {      
+    if (addr == 1007) {
       int cruise_button = (GET_BYTE(to_push, 7) >> 4) & 0x07U;
       bool main_button = GET_BIT(to_push, 58U);
       hyundai_common_cruise_buttons_check(cruise_button, main_button);

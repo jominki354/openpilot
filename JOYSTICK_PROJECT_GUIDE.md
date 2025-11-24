@@ -3,7 +3,7 @@
 ## 프로젝트 개요
 comma 3x 기기에서 조이스틱을 사용한 차량 제어 시스템 개발
 
-**브랜치:** `j-st-s`  
+**브랜치:** `j-st-s`
 **GitHub:** https://github.com/jominki354/openpilot.git
 
 ---
@@ -42,9 +42,9 @@ openpilot/selfdrive/ui/qt/offroad/developer_panel.cc/h
 JoystickDebugMode: bool - 조이스틱 모드 활성화
 JoystickSmoothingEnabled: bool - 민감도 필터링 활성화
 JoystickSteeringSensitivity: int (10-100) - 조향 반응 속도
-JoystickSteeringGain: int (50-200) - 조향 반응 강도
+JoystickSteeringGain: int (50-400) - 조향 반응 강도
 JoystickAccelSensitivity: int (10-100) - 액셀 반응 속도
-JoystickAccelGain: int (50-200) - 액셀 반응 강도
+JoystickAccelGain: int (50-400) - 액셀 반응 강도
 JoystickDeadzone: int (0-20) - 입력 무시 범위
 JoystickPreset: string - 현재 프리셋 ("기본값", "부드럽게", "보통", "강하게")
 ```
@@ -175,19 +175,19 @@ bool joystick_running = manager_state.find("\"joystick\"") != std::string::npos;
 ## 트러블슈팅
 
 ### 문제: "프로세스가 실행되지 않았습니다 joystickd"
-**원인:** `started` 조건 때문에 크루즈 인게이지 전에 joystickd가 실행되지 않음  
+**원인:** `started` 조건 때문에 크루즈 인게이지 전에 joystickd가 실행되지 않음
 **해결:** process_config.py에서 `started` 조건 제거
 
 ### 문제: 빌드 에러 - "no member named 'get_bool'"
-**원인:** Python 스타일 메서드명 사용  
+**원인:** Python 스타일 메서드명 사용
 **해결:** `get_bool` → `getBool` 변경
 
 ### 문제: 변수 shadowing 에러
-**원인:** 헤더에 선언된 멤버 변수를 함수 내에서 `auto`로 재선언  
+**원인:** 헤더에 선언된 멤버 변수를 함수 내에서 `auto`로 재선언
 **해결:** `auto` 키워드 제거, 멤버 변수 직접 사용
 
 ### 문제: UI 값이 즉시 업데이트 안 됨
-**원인:** Qt 위젯이 자동으로 리프레시되지 않음  
+**원인:** Qt 위젯이 자동으로 리프레시되지 않음
 **해결:** `updateValueControls()` 함수로 강제 리프레시
 
 ---
@@ -241,7 +241,7 @@ Improve: Show individual process status with colored indicators
 
 ## 연락처 및 지원
 
-**GitHub Issues:** https://github.com/jominki354/openpilot/issues  
+**GitHub Issues:** https://github.com/jominki354/openpilot/issues
 **브랜치:** j-st-s
 
 ---

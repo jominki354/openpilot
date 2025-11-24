@@ -91,8 +91,8 @@ DeveloperPanel::DeveloperPanel(SettingsWindow *parent) : ListWidget(parent) {
   // Steering Gain (Strength)
   steeringGain = new CValueControl("JoystickSteeringGain",
                                     tr("  조향 반응 강도"),
-                                    tr("100=기본값, 50~99=약하게, 101~200=강하게"),
-                                    50, 200, 10);
+                                    tr("100=기본값, 50~99=약하게, 101~400=강하게"),
+                                    50, 400, 10);
   addItem(steeringGain);
 
   // Accel Sensitivity (Speed)
@@ -105,8 +105,8 @@ DeveloperPanel::DeveloperPanel(SettingsWindow *parent) : ListWidget(parent) {
   // Accel Gain (Strength)
   accelGain = new CValueControl("JoystickAccelGain",
                                  tr("  액셀 반응 강도"),
-                                 tr("100=기본값, 50~99=약하게, 101~200=강하게"),
-                                 50, 200, 10);
+                                 tr("100=기본값, 50~99=약하게, 101~400=강하게"),
+                                 50, 400, 10);
   addItem(accelGain);
 
   // Deadzone
