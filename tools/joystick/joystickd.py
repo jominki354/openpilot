@@ -212,8 +212,18 @@ def joystickd_thread():
         actuators.longControlState = LongCtrlState.pid
 
         # Auto-resume if accelerating but cruise is disabled (for standstill start)
-        if accel_output > 0 and not sm['carState'].cruiseState.enabled:
-          cc_msg.carControl.cruiseControl.resume = True
+        cruise_enabled = sm['carState'].cruiseState.enabled
+        standstill = sm['carState'].standstill
+        v_ego = sm['carState'].vEgo
+
+        if accel_output > 0.05:  # 5% 이상 가속 입력
+          cloudlog.warning(f"[JOYSTICK] accel={accel_output:.2f}, cruise={cruise_enabled}, standstill={standstill}, v_ego={v_ego:.2f}")
+
+          if not cruise_enabled:
+            cloudlog.warning("[JOYSTICK] Sending RESUME signal to enable cruise")
+            cc_msg.carControl.cruiseControl.resume = True
+          else:
+            cloudlog.info(f"[JOYSTICK] Cruise already enabled, accel command: {actuators.accel:.2f}")
 
       if CC.latActive:
         max_curvature = MAX_LAT_ACCEL / max(sm['carState'].vEgo ** 2, 5)
