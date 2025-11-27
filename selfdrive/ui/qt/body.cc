@@ -8,6 +8,7 @@
 
 #include "common/params.h"
 #include "common/timing.h"
+#include "selfdrive/ui/qt/util.h"
 
 RecordButton::RecordButton(QWidget *parent) : QPushButton(parent) {
   setCheckable(true);
