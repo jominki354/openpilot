@@ -22,11 +22,11 @@ MAX_LAT_ACCEL = 3.75
 
 def validate_joystick_input(value: float, axis_name: str) -> float:
   """Validate and clamp joystick input values.
-  
+
   Args:
     value: Raw joystick input value
     axis_name: Name of axis for logging
-    
+
   Returns:
     Validated and clamped value in range [-1.0, 1.0]
   """
@@ -34,17 +34,18 @@ def validate_joystick_input(value: float, axis_name: str) -> float:
   if not math.isfinite(value):
     cloudlog.warning(f"Invalid {axis_name} value (NaN/Inf), resetting to 0")
     return 0.0
-  
+
   # Clamp to valid range
   clamped = max(-1.0, min(1.0, value))
   if clamped != value:
     cloudlog.debug(f"{axis_name} value {value} clamped to {clamped}")
-  
+
   return clamped
 
 
 def joystickd_thread():
   import time
+
   params = Params()
   cloudlog.info("joystickd is waiting for CarParams")
 
@@ -80,7 +81,7 @@ def joystickd_thread():
   deadzone = 0.0
   param_update_counter = 0
 
-  sm = messaging.SubMaster(['carState', 'onroadEvents', 'liveParameters', 'selfdriveState', 'testJoystick'], frequency=1. / DT_CTRL)
+  sm = messaging.SubMaster(['carState', 'onroadEvents', 'liveParameters', 'selfdriveState', 'testJoystick'], frequency=1.0 / DT_CTRL)
   pm = messaging.PubMaster(['carControl', 'controlsState'])
 
   # Connection state tracking
@@ -93,11 +94,11 @@ def joystickd_thread():
     try:
       sm.update(0)
 
-
       # Update parameters only once per second (100Hz -> 1Hz)
       if param_update_counter % 100 == 0:
         smoothing_enabled = params.get_bool("JoystickSmoothingEnabled")
         if smoothing_enabled:
+
           def get_param_int(key, default):
             value = params.get(key)
             if value is None or value == b'':
@@ -118,17 +119,17 @@ def joystickd_thread():
       cc_msg = messaging.new_message('carControl')
       cc_msg.valid = True
       CC = cc_msg.carControl
-      
+
       # Respect car state instead of forcing enabled
       # Only enable if selfdriveState allows and car is in valid state
       CS = sm['carState']
       selfdrive_enabled = sm['selfdriveState'].enabled
-      
+
       # Enable controls in joystick mode, respecting safety constraints
       CC.enabled = selfdrive_enabled or params.get_bool("JoystickDebugMode")
       CC.latActive = CC.enabled and not CS.steerFaultPermanent and not CS.steerFaultTemporary
       CC.longActive = CC.enabled and CP.openpilotLongitudinalControl
-      
+
       CC.cruiseControl.cancel = sm['carState'].cruiseState.enabled and (not CC.enabled or not CP.pcmCruise)
       CC.hudControl.leadDistanceBars = 2
       CC.hudControl.leadVisible = True
@@ -136,7 +137,7 @@ def joystickd_thread():
       actuators = CC.actuators
 
       # reset joystick if it hasn't been received in a while
-      should_reset_joystick = sm.recv_frame['testJoystick'] == 0 or (sm.frame - sm.recv_frame['testJoystick'])*DT_CTRL > 0.2
+      should_reset_joystick = sm.recv_frame['testJoystick'] == 0 or (sm.frame - sm.recv_frame['testJoystick']) * DT_CTRL > 0.2
 
       # Track connection state
       current_time = time.time()
@@ -209,6 +210,10 @@ def joystickd_thread():
         actuators.accel = 6.0 * max(-1.0, min(1.0, accel_output))
         # Always use pid mode in joystick mode to allow starting from stop
         actuators.longControlState = LongCtrlState.pid
+
+        # Auto-resume if accelerating but cruise is disabled (for standstill start)
+        if accel_output > 0 and not sm['carState'].cruiseState.enabled:
+          cc_msg.carControl.cruiseControl.resume = True
 
       if CC.latActive:
         max_curvature = MAX_LAT_ACCEL / max(sm['carState'].vEgo ** 2, 5)
