@@ -1,59 +1,190 @@
+#include <CL/cl.h>
+#include <algorithm>
+#include <time.h>
+#include <dirent.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/time.h>
+
+#include "libyuv.h"
+#include "common/clutil.h"
+
 #include "selfdrive/ui/qt/screenrecorder/screenrecorder.h"
 #include "selfdrive/ui/qt/util.h"
-#include <QPainter>
+#include "selfdrive/ui/ui.h"
+#include "system/hardware/hw.h"
 
-ScreenRecoder::ScreenRecoder(QWidget *parent) : QPushButton(parent) {
+static long long milliseconds(void) {
+    struct timeval tv;
+    gettimeofday(&tv,NULL);
+    return (((long long)tv.tv_sec)*1000)+(tv.tv_usec/1000);
+}
+
+ScreenRecoder::ScreenRecoder(QWidget *parent) : QPushButton(parent), image_queue(30)
+{
+
+  recording = false;
+  started = 0;
+  frame = 0;
+
   const int size = 190;
   setFixedSize(size, size);
   setFocusPolicy(Qt::NoFocus);
 
-  joystick_img = QPixmap("../assets/img_joystick.png");
-  joystick_mode = params.getBool("JoystickDebugMode");
-
   QObject::connect(this, &QPushButton::clicked, [=]() { toggle(); });
-}
-
-void ScreenRecoder::toggle() {
-  joystick_mode = !joystick_mode;
-  params.putBool("JoystickDebugMode", joystick_mode);
-  update();
-}
-
-void ScreenRecoder::update_screen() {
-  // Poll params occasionally to sync state if changed externally
-  static int frame = 0;
-  if (frame++ % 50 == 0) {
-    bool new_mode = params.getBool("JoystickDebugMode");
-    if (new_mode != joystick_mode) {
-      joystick_mode = new_mode;
-      update();
+  QObject::connect(uiState(), &UIState::offroadTransition, [=](bool offroad) {
+    if(offroad) {
+      stop();
     }
+  });
+
+  std::string path = "/data/media/0/videos";
+  src_width = 2160;
+  src_height = 1080;
+
+  dst_height = 720;
+  dst_width = src_width * dst_height / src_height;
+  if(dst_width % 2 != 0)
+      dst_width += 1;
+
+  rgb_buffer = std::make_unique<uint8_t[]>(src_width*src_height*4);
+  rgb_scale_buffer = std::make_unique<uint8_t[]>(dst_width*dst_height*4);
+  encoder = std::make_unique<OmxEncoder>(path.c_str(), dst_width, dst_height, UI_FREQ, 2*1024*1024, false, false);
+}
+
+ScreenRecoder::~ScreenRecoder() {
+  stop();
+}
+
+void ScreenRecoder::applyColor() {
+
+  if(frame % (UI_FREQ/2) == 0) {
+
+    if(frame % UI_FREQ < (UI_FREQ/2))
+      recording_color = QColor::fromRgbF(1, 0, 0, 0.6);
+    else
+      recording_color = QColor::fromRgbF(0, 0, 0, 0.3);
+
+    update();
   }
 }
 
 void ScreenRecoder::paintEvent(QPaintEvent *event) {
-  QPainter p(this);
-  p.setRenderHint(QPainter::Antialiasing);
 
-  QPoint center(width() / 2, height() / 2);
+    QRect r = QRect(0, 0, width(), height());
+    r -= QMargins(5, 5, 5, 5);
+    QPainter p(this);
+    p.setCompositionMode(QPainter::CompositionMode_SourceOver);
+    p.setPen(QPen(QColor::fromRgbF(1, 1, 1, 0.4), 10, Qt::SolidLine, Qt::FlatCap));
 
-  // Background
-  QColor bg(joystick_mode ? "#33Ab4C" : "#393939"); // Green if ON, Gray if OFF
-  if (isDown()) {
-    bg = bg.darker(120);
+    p.setBrush(QBrush(QColor::fromRgbF(0, 0, 0, 0)));
+    //p.drawEllipse(r);
+
+    r -= QMargins(40, 40, 40, 40);
+    p.setPen(Qt::NoPen);
+
+    QColor bg = recording ? recording_color : QColor::fromRgbF(0, 0, 0, 0.3);
+    p.setBrush(QBrush(bg));
+    p.drawEllipse(r);
+}
+
+void ScreenRecoder::openEncoder(const char* filename) {
+    encoder->encoder_open(filename);
+}
+
+void ScreenRecoder::closeEncoder() {
+  if(encoder)
+      encoder->encoder_close();
+}
+
+void ScreenRecoder::toggle() {
+
+  if(!recording)
+      start();
+  else
+      stop();
+}
+
+void ScreenRecoder::start() {
+
+  if(recording)
+    return;
+
+  char filename[64];
+  time_t t = time(NULL);
+  struct tm tm = *localtime(&t);
+  snprintf(filename,sizeof(filename),"%04d%02d%02d-%02d%02d%02d.mp4", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+
+  recording = true;
+  frame = 0;
+
+  QWidget* widget = this;
+  while (widget->parentWidget() != Q_NULLPTR)
+    widget = widget->parentWidget();
+
+  rootWidget = widget;
+
+  openEncoder(filename);
+  encoding_thread = std::thread([=] { encoding_thread_func(); });
+
+  update();
+
+  started = milliseconds();
+}
+
+void ScreenRecoder::encoding_thread_func() {
+  uint64_t start_time = nanos_since_boot() -1;
+  while(recording && encoder) {
+    QImage popImage;
+    if(image_queue.pop_wait_for(popImage, std::chrono::milliseconds(10))) {
+
+      QImage image = popImage.convertToFormat(QImage::Format_RGBA8888);
+
+      try {
+        libyuv::ARGBScale(image.bits(), image.width()*4,
+              image.width(), image.height(),
+              rgb_scale_buffer.get(), dst_width*4,
+              dst_width, dst_height,
+              libyuv::kFilterLinear);
+  
+        encoder->encode_frame_rgba(rgb_scale_buffer.get(), dst_width, dst_height, ((uint64_t)nanos_since_boot() - start_time ));
+      } catch (...) {
+        printf("Encoding failed, skipping frame\n");
+        continue;
+      }
+    }
   }
-  p.setPen(Qt::NoPen);
-  p.setBrush(bg);
-  p.drawEllipse(center, 85, 85);
+}
 
-  // Image
-  if (!joystick_img.isNull()) {
-    p.drawPixmap(center.x() - joystick_img.width() / 2, center.y() - joystick_img.height() / 2 - 10, joystick_img);
+void ScreenRecoder::stop() {
+  if(recording) {
+    recording = false;
+    update();
+
+    closeEncoder();
+    image_queue.clear();
+    if(encoding_thread.joinable())
+      encoding_thread.join();
+  }
+}
+
+void ScreenRecoder::update_screen() {
+
+  if(recording) {
+
+    if(milliseconds() - started > 1000*60*20) {   // 20 minutes
+      stop();
+      start();
+      return;
+    }
+
+    applyColor();
+
+    if(rootWidget != nullptr) {
+      QPixmap pixmap = rootWidget->grab();
+      image_queue.push(pixmap.toImage());
+    }
   }
 
-  // Text
-  p.setFont(InterFont(25, QFont::Bold));
-  p.setPen(Qt::white);
-  QString text = joystick_mode ? "ON" : "OFF";
-  p.drawText(rect().adjusted(0, 0, 0, -25), Qt::AlignBottom | Qt::AlignHCenter, text);
+  frame++;
 }
