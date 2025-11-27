@@ -7,7 +7,7 @@
 #include "selfdrive/ui/qt/onroad/driver_monitoring.h"
 #include "selfdrive/ui/qt/onroad/model.h"
 #include "selfdrive/ui/qt/widgets/cameraview.h"
-#include "selfdrive/ui/qt/screenrecorder/screenrecorder.h"
+#include "selfdrive/ui/qt/body.h"
 
 class AnnotatedCameraWidget : public CameraWidget {
   Q_OBJECT
@@ -37,6 +37,5 @@ protected:
   FirstOrderFilter fps_filter;
   void paintEvent(QPaintEvent *event) override;
 private:
-  ScreenRecoder* recorder;
-  std::shared_ptr<QTimer> record_timer;
+  RecordButton* joystick_btn;
 };

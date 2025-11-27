@@ -12,12 +12,13 @@
 
 RecordButton::RecordButton(QWidget *parent) : QPushButton(parent) {
   setCheckable(true);
-  setChecked(false);
-  setFixedSize(148, 148);
+  setChecked(Params().getBool("JoystickDebugMode"));
+  setFixedSize(190, 190);
+  setFocusPolicy(Qt::NoFocus);
   joystick_img = QPixmap("../assets/img_joystick.png");
 
   QObject::connect(this, &QPushButton::toggled, [=](bool checked) {
-    // Button logic handled in BodyWindow
+    Params().putBool("JoystickDebugMode", checked);
   });
 }
 
@@ -70,13 +71,6 @@ BodyWindow::BodyWindow(QWidget *parent) : fuel_filter(1.0, 5., 1. / UI_FREQ), QW
   // joystick toggle button
   btn = new RecordButton(this);
   vlayout->addWidget(btn, 0, Qt::AlignBottom | Qt::AlignRight);
-  QObject::connect(btn, &QPushButton::clicked, [=](bool checked) {
-    Params().putBool("JoystickDebugMode", checked);
-    if (checked) {
-      // Force enable openpilot when joystick mode is activated
-      // This might be needed if openpilot is not engaged
-    }
-  });
   w->raise();
 
   QObject::connect(uiState(), &UIState::uiUpdate, this, &BodyWindow::updateState);

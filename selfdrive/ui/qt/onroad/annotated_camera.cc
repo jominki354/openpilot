@@ -24,18 +24,9 @@ AnnotatedCameraWidget::AnnotatedCameraWidget(VisionStreamType type, QWidget *par
 
   experimental_btn = new ExperimentalButton(this);
   main_layout->addWidget(experimental_btn, 0, Qt::AlignTop | Qt::AlignRight);
-  
-  record_timer = std::make_shared<QTimer>();
-	QObject::connect(record_timer.get(), &QTimer::timeout, [=]() {
-    if(recorder) {
-      recorder->update_screen();
-    }
-  });
-	record_timer->start(1000/UI_FREQ);
 
-	recorder = new ScreenRecoder(this);
-	main_layout->addWidget(recorder, 0, Qt::AlignBottom | Qt::AlignRight);
-  
+  joystick_btn = new RecordButton(this);
+  main_layout->addWidget(joystick_btn, 0, Qt::AlignBottom | Qt::AlignRight);
 }
 
 void AnnotatedCameraWidget::updateState(const UIState &s) {
@@ -52,15 +43,9 @@ void AnnotatedCameraWidget::updateState(const UIState &s) {
       carrot_cmd_index_last = carrot_cmd_index;
       QString carrot_cmd = QString::fromStdString(carrot.getCarrotCmd());
       QString carrot_arg = QString::fromStdString(carrot.getCarrotArg());
-      if (carrot_cmd == "RECORD") {
-        if (carrot_arg == "START") {
-          recorder->start();
-        }
-        else if (carrot_arg == "STOP") {
-          recorder->stop();
-        }
-        else if (carrot_arg == "TOGGLE") {
-          recorder->toggle();
+      if (carrot_cmd == "JOYSTICK") { // Changed from RECORD to JOYSTICK
+        if (carrot_arg == "TOGGLE") {
+          joystick_btn->toggle();
         }
       }
     }
@@ -192,7 +177,7 @@ void AnnotatedCameraWidget::paintEvent(QPaintEvent *event) {
   model.draw(painter, rect());
   painter.beginNativePainting();
   try {
-      ui_draw(s, &model, width(), height());      
+      ui_draw(s, &model, width(), height());
   } catch (const std::exception &e) {
 	LOGE("ui_nvg_draw failed: %s", e.what());
     print_stack_trace();
