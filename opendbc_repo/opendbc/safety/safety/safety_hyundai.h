@@ -7,7 +7,7 @@
   .max_steer = (steer), \
   .max_rate_up = (rate_up), \
   .max_rate_down = (rate_down), \
-  .max_rt_delta = 150, \  /* 112 -> 150: faster steering transitions */
+  .max_rt_delta = 150, \
   .max_rt_interval = 250000, \
   .driver_torque_allowance = 50, \
   .driver_torque_multiplier = 2, \
