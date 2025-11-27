@@ -15,6 +15,7 @@ public:
 
 private:
   void paintEvent(QPaintEvent*) override;
+  QPixmap joystick_img;
 };
 
 class BodyWindow : public QWidget {

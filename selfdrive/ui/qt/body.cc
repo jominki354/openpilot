@@ -13,9 +13,10 @@ RecordButton::RecordButton(QWidget *parent) : QPushButton(parent) {
   setCheckable(true);
   setChecked(false);
   setFixedSize(148, 148);
+  joystick_img = QPixmap("../assets/img_joystick.png");
 
-  QObject::connect(this, &QPushButton::toggled, [=]() {
-    setEnabled(false);
+  QObject::connect(this, &QPushButton::toggled, [=](bool checked) {
+    // Button logic handled in BodyWindow
   });
 }
 
@@ -25,28 +26,25 @@ void RecordButton::paintEvent(QPaintEvent *event) {
 
   QPoint center(width() / 2, height() / 2);
 
-  QColor bg(isChecked() ? "#FFFFFF" : "#737373");
-  QColor accent(isChecked() ? "#FF0000" : "#FFFFFF");
-  if (!isEnabled()) {
-    bg = QColor("#404040");
-    accent = QColor("#FFFFFF");
-  }
-
+  // Background
+  QColor bg(isChecked() ? "#33Ab4C" : "#393939"); // Green if ON, Gray if OFF
   if (isDown()) {
-    accent.setAlphaF(0.7);
+    bg = bg.darker(120);
   }
-
   p.setPen(Qt::NoPen);
   p.setBrush(bg);
   p.drawEllipse(center, 74, 74);
 
-  p.setPen(QPen(accent, 6));
-  p.setBrush(Qt::NoBrush);
-  p.drawEllipse(center, 42, 42);
+  // Image
+  if (!joystick_img.isNull()) {
+    p.drawPixmap(center.x() - joystick_img.width() / 2, center.y() - joystick_img.height() / 2 - 10, joystick_img);
+  }
 
-  p.setPen(Qt::NoPen);
-  p.setBrush(accent);
-  p.drawEllipse(center, 22, 22);
+  // Text
+  p.setFont(InterFont(20, QFont::Bold));
+  p.setPen(Qt::white);
+  QString text = isChecked() ? "ON" : "OFF";
+  p.drawText(rect().adjusted(0, 0, 0, -20), Qt::AlignBottom | Qt::AlignHCenter, text);
 }
 
 
@@ -68,13 +66,15 @@ BodyWindow::BodyWindow(QWidget *parent) : fuel_filter(1.0, 5., 1. / UI_FREQ), QW
   sleep = new QMovie("../assets/body/sleep.gif", {}, this);
   sleep->setCacheMode(QMovie::CacheAll);
 
-  // record button
+  // joystick toggle button
   btn = new RecordButton(this);
   vlayout->addWidget(btn, 0, Qt::AlignBottom | Qt::AlignRight);
   QObject::connect(btn, &QPushButton::clicked, [=](bool checked) {
-    btn->setEnabled(false);
-    Params().putBool("DisableLogging", !checked);
-    last_button = nanos_since_boot();
+    Params().putBool("JoystickDebugMode", checked);
+    if (checked) {
+      // Force enable openpilot when joystick mode is activated
+      // This might be needed if openpilot is not engaged
+    }
   });
   w->raise();
 
@@ -123,8 +123,6 @@ void BodyWindow::paintEvent(QPaintEvent *event) {
 }
 
 void BodyWindow::offroadTransition(bool offroad) {
-  btn->setChecked(true);
-  btn->setEnabled(true);
   fuel_filter.reset(1.0);
 }
 
@@ -147,14 +145,13 @@ void BodyWindow::updateState(const UIState &s) {
     face->movie()->start();
   }
 
-  // update record button state
-  if (sm.updated("managerState") && (sm.rcv_time("managerState") - last_button)*1e-9 > 0.5) {
-    for (auto proc : sm["managerState"].getManagerState().getProcesses()) {
-      if (proc.getName() == "loggerd") {
-        btn->setEnabled(true);
-        btn->setChecked(proc.getRunning());
-      }
-    }
+  // update joystick button state
+  if (sm.updated("managerState")) {
+     // Check JoystickDebugMode param
+     bool joystick_mode = Params().getBool("JoystickDebugMode");
+     if (btn->isChecked() != joystick_mode) {
+       btn->setChecked(joystick_mode);
+     }
   }
 
   update();
