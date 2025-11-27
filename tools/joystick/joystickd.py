@@ -126,11 +126,24 @@ def joystickd_thread():
       selfdrive_enabled = sm['selfdriveState'].enabled
 
       # Enable controls in joystick mode, respecting safety constraints
-      CC.enabled = selfdrive_enabled or params.get_bool("JoystickDebugMode")
+      joystick_mode = params.get_bool("JoystickDebugMode")
+
+      # 🚨 CRITICAL: Joystick mode takes exclusive control
+      if joystick_mode:
+        CC.enabled = True
+        # Cancel cruise if it's running to prevent conflict
+        if CS.cruiseState.enabled:
+          cloudlog.warning("[JOYSTICK] Canceling cruise to prevent control conflict")
+          CC.cruiseControl.cancel = True
+        else:
+          CC.cruiseControl.cancel = False
+      else:
+        CC.enabled = selfdrive_enabled
+        CC.cruiseControl.cancel = sm['carState'].cruiseState.enabled and (not CC.enabled or not CP.pcmCruise)
+
       CC.latActive = CC.enabled and not CS.steerFaultPermanent and not CS.steerFaultTemporary
       CC.longActive = CC.enabled and CP.openpilotLongitudinalControl
 
-      CC.cruiseControl.cancel = sm['carState'].cruiseState.enabled and (not CC.enabled or not CP.pcmCruise)
       CC.hudControl.leadDistanceBars = 2
       CC.hudControl.leadVisible = True
 
@@ -210,17 +223,6 @@ def joystickd_thread():
         actuators.accel = 6.0 * max(-1.0, min(1.0, accel_output))
         # Always use pid mode in joystick mode to allow starting from stop
         actuators.longControlState = LongCtrlState.pid
-
-        # Auto-resume if accelerating but cruise is disabled (for standstill start)
-        cruise_enabled = sm['carState'].cruiseState.enabled
-        standstill = sm['carState'].standstill
-        v_ego = sm['carState'].vEgo
-
-        if accel_output > 0.05:  # 5% 이상 가속 입력
-          cloudlog.warning(f"[JOYSTICK] accel={accel_output:.2f}, cruise={cruise_enabled}, standstill={standstill}, v_ego={v_ego:.2f}")
-
-          if not cruise_enabled:
-            cloudlog.warning("[JOYSTICK] Sending RESUME signal to enable cruise")
             cc_msg.carControl.cruiseControl.resume = True
           else:
             cloudlog.info(f"[JOYSTICK] Cruise already enabled, accel command: {actuators.accel:.2f}")
