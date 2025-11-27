@@ -7,7 +7,7 @@
   .max_steer = (steer), \
   .max_rate_up = (rate_up), \
   .max_rate_down = (rate_down), \
-  .max_rt_delta = 112, \
+  .max_rt_delta = 150, \  /* 112 -> 150: faster steering transitions */
   .max_rt_interval = 250000, \
   .driver_torque_allowance = 50, \
   .driver_torque_multiplier = 2, \
@@ -22,8 +22,8 @@
 
 extern const LongitudinalLimits HYUNDAI_LONG_LIMITS;
 const LongitudinalLimits HYUNDAI_LONG_LIMITS = {
-  .max_accel = 500,   // 1/100 m/s2
-  .min_accel = -800,  // 1/100 m/s2
+  .max_accel = 600,   // 1/100 m/s2 (was 500, now 6.0 m/s²)
+  .min_accel = -1000, // 1/100 m/s2 (was -800, now -10.0 m/s²)
 };
 
 static const CanMsg HYUNDAI_TX_MSGS[] = {
@@ -203,8 +203,8 @@ uint32_t last_ts_fca11_from_op = 0;
 uint32_t last_ts_fca12_from_op = 0;
 
 static bool hyundai_tx_hook(const CANPacket_t *to_send) {
-  const TorqueSteeringLimits HYUNDAI_STEERING_LIMITS = HYUNDAI_LIMITS(512, 10, 10);
-  const TorqueSteeringLimits HYUNDAI_STEERING_LIMITS_ALT = HYUNDAI_LIMITS(512, 10, 10);
+  const TorqueSteeringLimits HYUNDAI_STEERING_LIMITS = HYUNDAI_LIMITS(512, 35, 35);  // 10 -> 35: faster steering response
+  const TorqueSteeringLimits HYUNDAI_STEERING_LIMITS_ALT = HYUNDAI_LIMITS(512, 35, 35);
   const TorqueSteeringLimits HYUNDAI_STEERING_LIMITS_ALT_2 = HYUNDAI_LIMITS(170, 2, 3);
 
   bool tx = true;
