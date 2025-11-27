@@ -76,7 +76,7 @@ class CarInterface(CarInterfaceBase):
           if 0x110 in fingerprint[CAN.CAM]: # 0x110(272): LKAS_ALT
             ret.flags |= HyundaiFlags.CANFD_HDA2_ALT_STEERING.value
             print("$$$CANFD ALT_STEERING1")
-          ## carrot_todo: sorento: 
+          ## carrot_todo: sorento:
           if 0x2a4 not in fingerprint[CAN.CAM]: # 0x2a4(676): CAM_0x2a4
             ret.flags |= HyundaiFlags.CANFD_HDA2_ALT_STEERING.value
             print("$$$CANFD ALT_STEERING2")
@@ -110,7 +110,7 @@ class CarInterface(CarInterfaceBase):
       else:
         ret.extFlags |= HyundaiExtFlags.CANFD_GEARS_NONE.value
         print("$$$CANFD GEARS_NONE")
-          
+
       cfgs = [get_safety_config(structs.CarParams.SafetyModel.hyundaiCanfd), ]
       if CAN.ECAN >= 4:
         cfgs.insert(0, get_safety_config(structs.CarParams.SafetyModel.noOutput))
@@ -222,6 +222,11 @@ class CarInterface(CarInterfaceBase):
     elif ret.flags & HyundaiFlags.FCEV:
       ret.safetyConfigs[-1].safetyParam |= HyundaiSafetyFlags.FCEV_GAS.value
 
+    # Joystick debug mode: Allow controls even when cruise is off
+    if params.getBool("JoystickDebugMode"):
+      ret.safetyConfigs[-1].safetyParam |= 1024  # HYUNDAI_PARAM_JOYSTICK_DEBUG
+      print("$$$JOYSTICK_DEBUG mode enabled in Safety")
+
     # Car specific configuration overrides
 
     if candidate == CAR.KIA_OPTIMA_G4_FL:
@@ -277,7 +282,7 @@ def enable_radar_tracks(CP, logcan, sendcan):
         ret = True
         break
     except Exception as e:
-      print(f"Failed : {e}") 
+      print(f"Failed : {e}")
   except Exception as e:
     print("##############  Failed to enable tracks" + str(e))
   print("################ END Try to enable radar tracks")
