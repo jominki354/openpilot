@@ -202,7 +202,14 @@ def joystickd_thread():
         # Apply gain (100 = 1:1/disabled, !=100 = scaled)
         if steer_gain != 1.0:
           steer_output = steer_output * steer_gain
-          steer_output = max(-1.0, min(1.0, steer_output))
+
+        # Boost logic: Apply extra torque for large inputs to improve responsiveness
+        # This helps torque control cars feel snappier
+        if abs(steer_output) > 0.3:
+          boost = (abs(steer_output) - 0.3) * 0.5
+          steer_output += boost if steer_output > 0 else -boost
+
+        steer_output = max(-1.0, min(1.0, steer_output))
 
         if accel_gain != 1.0:
           accel_output = accel_output * accel_gain
@@ -223,6 +230,17 @@ def joystickd_thread():
         actuators.accel = 6.0 * max(-1.0, min(1.0, accel_output))
         # Always use pid mode in joystick mode to allow starting from stop
         actuators.longControlState = LongCtrlState.pid
+
+        # Auto-resume if accelerating but cruise is disabled (for standstill start)
+        cruise_enabled = sm['carState'].cruiseState.enabled
+        standstill = sm['carState'].standstill
+        v_ego = sm['carState'].vEgo
+
+        if accel_output > 0.05:  # 5% 이상 가속 입력
+          cloudlog.warning(f"[JOYSTICK] accel={accel_output:.2f}, cruise={cruise_enabled}, standstill={standstill}, v_ego={v_ego:.2f}")
+
+          if not cruise_enabled:
+            cloudlog.warning("[JOYSTICK] Sending RESUME signal to enable cruise")
             cc_msg.carControl.cruiseControl.resume = True
           else:
             cloudlog.info(f"[JOYSTICK] Cruise already enabled, accel command: {actuators.accel:.2f}")
