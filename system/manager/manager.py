@@ -19,8 +19,9 @@ from openpilot.common.swaglog import cloudlog, add_file_handler
 from openpilot.system.version import get_build_metadata, terms_version, training_version
 from openpilot.system.hardware.hw import Paths
 
+
 def get_default_params():
-  default_params : list[tuple[str, str | bytes]] = [
+  default_params: list[tuple[str, str | bytes]] = [
     # kans
     ("LongPitch", "1"),
     ("EVTable", "1"),
@@ -33,12 +34,9 @@ def get_default_params():
     ("LongitudinalPersonality", str(log.LongitudinalPersonality.standard)),
     ("IsMetric", "1"),
     ("RecordAudio", "1"),
-
     ("SearchInput", "0"),
     ("GMapKey", "0"),
     ("MapboxStyle", "0"),
-
-
     ("LongitudinalPersonalityMax", "3"),
     ("ShowDebugUI", "0"),
     ("ShowTpms", "1"),
@@ -65,18 +63,15 @@ def get_default_params():
     ("AutoEngage", "0"),
     ("DisableMinSteerSpeed", "0"),
     ("SoftHoldMode", "0"),
-
     ("AutoSpeedUptoRoadSpeedLimit", "0"),
     ("AutoRoadSpeedAdjust", "50"),
     ("AutoCurveSpeedLowerLimit", "30"),
     ("AutoCurveSpeedFactor", "120"),
     ("AutoCurveSpeedAggressiveness", "100"),
-
     ("AutoTurnControl", "0"),
     ("AutoTurnControlSpeedTurn", "20"),
     ("AutoTurnControlTurnEnd", "6"),
     ("AutoTurnMapChange", "0"),
-
     ("AutoNaviSpeedCtrlEnd", "7"),
     ("AutoNaviSpeedCtrlMode", "2"),
     ("AutoNaviSpeedBumpTime", "1"),
@@ -183,7 +178,6 @@ def get_default_params():
     ("SteerRatioRate", "100"),
     ("NNFF", "0"),
     ("NNFFLite", "0"),
-
     # Joystick parameters
     ("JoystickSmoothingEnabled", "0"),
     ("JoystickSteeringSensitivity", "100"),
@@ -195,6 +189,7 @@ def get_default_params():
     ("JoystickMaxSpeed", "0"),
   ]
   return default_params
+
 
 def set_default_params():
   params = Params()
@@ -210,10 +205,12 @@ def set_default_params():
     params.put(k, v)
     print(f"SetToDefault[{k}]={v}")
 
+
 def get_default_params_key():
   default_params = get_default_params()
   all_keys = [key for key, _ in default_params]
   return all_keys
+
 
 def manager_init() -> None:
   save_bootlog()
@@ -266,22 +263,24 @@ def manager_init() -> None:
   else:
     raise Exception(f"Registration failed for device {serial}")
   os.environ['DONGLE_ID'] = dongle_id  # Needed for swaglog
-  os.environ['GIT_ORIGIN'] = build_metadata.openpilot.git_normalized_origin # Needed for swaglog
-  os.environ['GIT_BRANCH'] = build_metadata.channel # Needed for swaglog
-  os.environ['GIT_COMMIT'] = build_metadata.openpilot.git_commit # Needed for swaglog
+  os.environ['GIT_ORIGIN'] = build_metadata.openpilot.git_normalized_origin  # Needed for swaglog
+  os.environ['GIT_BRANCH'] = build_metadata.channel  # Needed for swaglog
+  os.environ['GIT_COMMIT'] = build_metadata.openpilot.git_commit  # Needed for swaglog
 
   if not build_metadata.openpilot.is_dirty:
     os.environ['CLEAN'] = '1'
 
   # init logging
   sentry.init(sentry.SentryProject.SELFDRIVE)
-  cloudlog.bind_global(dongle_id=dongle_id,
-                       version=build_metadata.openpilot.version,
-                       origin=build_metadata.openpilot.git_normalized_origin,
-                       branch=build_metadata.channel,
-                       commit=build_metadata.openpilot.git_commit,
-                       dirty=build_metadata.openpilot.is_dirty,
-                       device=HARDWARE.get_device_type())
+  cloudlog.bind_global(
+    dongle_id=dongle_id,
+    version=build_metadata.openpilot.version,
+    origin=build_metadata.openpilot.git_normalized_origin,
+    branch=build_metadata.channel,
+    commit=build_metadata.openpilot.git_commit,
+    dirty=build_metadata.openpilot.is_dirty,
+    device=HARDWARE.get_device_type(),
+  )
 
   # preimport all processes
   for p in managed_processes.values():
@@ -358,13 +357,18 @@ def manager_thread() -> None:
         managed_processes["joystick"].stop(block=True, sig=signal.SIGKILL)
       if "webjoystick" in managed_processes:
         managed_processes["webjoystick"].stop(block=True, sig=signal.SIGKILL)
+
+      # 🚨 CRITICAL: Restart boardd to reload Safety Param with joystick flag
+      if "boardd" in managed_processes:
+        cloudlog.warning("Restarting boardd to apply Safety Param changes for joystick mode")
+        managed_processes["boardd"].stop(block=True, sig=signal.SIGKILL)
+
       joystick_mode_prev = joystick_mode
 
     ensure_running(managed_processes.values(), started, params=params, CP=sm['carParams'], not_run=ignore)
 
-    running = ' '.join("{}{}\u001b[0m".format("\u001b[32m" if p.proc.is_alive() else "\u001b[31m", p.name)
-                       for p in managed_processes.values() if p.proc)
-    print_timer = (print_timer + 1)%10
+    running = ' '.join("{}{}\u001b[0m".format("\u001b[32m" if p.proc.is_alive() else "\u001b[31m", p.name) for p in managed_processes.values() if p.proc)
+    print_timer = (print_timer + 1) % 10
     if print_timer == 0:
       print(running)
     cloudlog.debug(running)
@@ -384,6 +388,7 @@ def manager_thread() -> None:
 
     if shutdown:
       break
+
 
 def main() -> None:
   manager_init()
