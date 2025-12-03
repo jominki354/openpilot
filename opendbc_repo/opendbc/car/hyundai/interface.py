@@ -223,7 +223,7 @@ class CarInterface(CarInterfaceBase):
       ret.safetyConfigs[-1].safetyParam |= HyundaiSafetyFlags.FCEV_GAS.value
 
     # Joystick debug mode: Allow controls even when cruise is off
-    if params.getBool("JoystickDebugMode"):
+    if params.get_bool("JoystickDebugMode"):
       ret.safetyConfigs[-1].safetyParam |= 1024  # HYUNDAI_PARAM_JOYSTICK_DEBUG
       print("$$$JOYSTICK_DEBUG mode enabled in Safety")
 
