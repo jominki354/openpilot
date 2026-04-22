@@ -2590,7 +2590,48 @@ function initToolsPage() {
 
   bindOnce("btnGitLog", async () => {
     try {
+      // 1. 터미널 출력
       await runTool("git_log", { count: 20 });
+
+      // 2. 팝업 UI 표시를 위한 데이터 다시 로드
+      const res = await postJson("/api/tools", { action: "git_log", count: 20 });
+      if (!res.ok) throw new Error(res.error || "Failed to load git log");
+      const commits = res.commits || [];
+      const currentCommit = res.current_commit || "";
+      if (!commits.length) {
+        alert("No commits found");
+        return;
+      }
+
+      const selected = await openAppDialog({
+        mode: "choice",
+        title: "git log",
+        message: LANG === "ko" ? "이동할 커밋을 선택하세요" : "Select commit to checkout",
+        cancelLabel: UI_STRINGS[LANG].cancel || "Cancel",
+        choices: commits.map(c => {
+          const isCurrent = currentCommit && c.hash.startsWith(currentCommit);
+          const badgeHtml = isCurrent
+            ? ` <span class="app-branch-picker__badge">${getUIText("branch_current", "Current")}</span>`
+            : "";
+          return {
+            labelHtml: `<span class="app-branch-picker__label"><span style="color:#4caf50;font-weight:700;font-family:monospace;margin-right:8px;">${escapeHtml(c.hash)}</span>${escapeHtml(c.message)}</span>${badgeHtml}`,
+            value: c.hash,
+            className: isCurrent ? "is-current" : "",
+          };
+        }),
+      });
+      if (!selected) return;
+
+      const confirmMsg = LANG === "ko"
+        ? `이 커밋으로 이동하시겠습니까?\n\n${selected}`
+        : `Checkout this commit?\n\n${selected}`;
+      if (!await appConfirm(confirmMsg, { title: "git checkout" })) return;
+
+      const resetRes = await postJson("/api/tools", { action: "git_reset", mode: "hard", target: selected });
+      if (!resetRes.ok) throw new Error(resetRes.error || "Reset failed");
+      
+      alert(LANG === "ko" ? "이동 완료" : "Checkout complete");
+      await refreshToolsMetaInfo();
     } catch (e) {
       showError("git_log", e);
     }
