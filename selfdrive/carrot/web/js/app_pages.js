@@ -27,8 +27,6 @@ const settingValueCache = new Map();
 const settingGroupValueCache = new Map();
 const settingGroupValuePromises = new Map();
 
-let BRANCHES = [];
-let CURRENT_BRANCH_NAME = "";
 let ORIGIN_USERNAME = "origin";
 
 function hasFreshPageData(lastLoadedAt, ttlMs = PAGE_DATA_TTL_MS) {
